@@ -649,46 +649,157 @@ def _feed(opps: list[dict]) -> str:
 
 
 _LAND_CSS = """
-.lwrap{max-width:1080px;margin:0 auto;padding:0 clamp(24px, 5vw, 64px)}
-.lnav{display:flex;align-items:center;justify-content:space-between;padding:28px 0;border-bottom:1px solid var(--line);transition:border-color 0.3s ease}
+/* ── Landing: full-bleed sections, no lwrap max-width on hero ── */
+.lnav{
+  display:flex;align-items:center;justify-content:space-between;
+  max-width:1120px;margin:0 auto;
+  padding:24px clamp(24px,5vw,64px);
+}
 .lnav .llogo{display:flex;align-items:center}
-.lnav .llogo .lg{height:44px;width:auto}
+.lnav .llogo .lg{height:36px;width:auto}
 .lnav .lr{display:flex;gap:20px;align-items:center;font-size:14px}
-.lnav .lr a{color:var(--soft);text-decoration:none;font-weight:600;transition:var(--transition)}
-.lnav .lr a:hover{color:var(--ink)}
-.lnav .lr a.s{background:var(--gold);color:#fff;padding:9px 18px;border-radius:4px;font-weight:700}
-.lnav .lr a.s:hover{background:var(--goldbright)}
-.hero{padding:clamp(48px, 8vw, 120px) 0 clamp(32px, 5vw, 64px)}
-.hero h1{font-size:clamp(28px, 4vw, 48px);line-height:1.2;letter-spacing:-0.5px;margin:0 0 20px;font-weight:800;color:var(--ink);font-family:var(--font-sans);text-wrap:balance}
-.hero h1 em{color:var(--gold);font-style:normal;font-weight:800}
-.hero p{font-size:clamp(15px, 1.2vw, 17px);color:var(--soft);line-height:1.7;margin:0 0 36px;max-width:58ch}
-.hcta{display:flex;gap:14px;flex-wrap:wrap}
-.hcta a{text-decoration:none;border-radius:4px;padding:14px 28px;font-weight:700;font-size:15px;transition:var(--transition)}
-.hcta .p{background:var(--gold);color:#fff}
-.hcta .p:hover{background:var(--goldbright)}
-.hcta .s{border:1px solid var(--line);color:var(--ink);background:var(--card)}
-.hcta .s:hover{border-color:var(--gold);background:var(--rec)}
-.steps{display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:20px;margin:clamp(40px, 6vw, 80px) 0}
-.step{
-  padding:28px;
-  border:1px solid var(--line);
-  border-radius:4px;
-  background:var(--card);
-  box-shadow:none;
-  transition:var(--transition-spring);
+.lnav .lr a{color:rgba(255,255,255,.7);text-decoration:none;font-weight:600;transition:var(--transition)}
+.lnav .lr a:hover{color:#fff}
+.lnav .lr a.s{background:#fff;color:var(--ink);padding:9px 20px;border-radius:6px;font-weight:700}
+.lnav .lr a.s:hover{background:rgba(255,255,255,.9)}
+/* ── Hero: dark immersive band ── */
+.hero-band{
+  background:var(--ink);
+  color:#f0f7f4;
+  position:relative;
+  overflow:hidden;
 }
-.step:hover{
-  box-shadow:0 8px 20px rgba(0, 47, 167, 0.04);
-  border-color:var(--gold);
+.hero-band::before{
+  content:"";position:absolute;inset:0;
+  background:radial-gradient(ellipse 80% 60% at 70% 40%, rgba(13,148,136,.18) 0%, transparent 70%),
+             radial-gradient(ellipse 50% 80% at 20% 80%, rgba(0,93,83,.12) 0%, transparent 60%);
+  pointer-events:none;
 }
-.step .ico{font-size:22px;margin-bottom:10px;display:block}
-.step h3{margin:0 0 6px;font-size:15.5px;font-weight:800;color:var(--ink);font-family:var(--font-sans)}
-.step p{color:var(--soft);font-size:13px;line-height:1.6;margin:0}
-.lsec{margin:clamp(48px, 6vw, 80px) 0}.lsec h2{font-size:clamp(22px, 2.5vw, 26px);font-weight:800;letter-spacing:-0.5px;margin:0 0 10px;color:var(--ink);font-family:var(--font-sans)}
+.hero{
+  max-width:1120px;margin:0 auto;
+  padding:clamp(64px,10vw,140px) clamp(24px,5vw,64px) clamp(56px,8vw,120px);
+  position:relative;z-index:1;
+}
+.hero h1{
+  font-size:clamp(32px,5vw,56px);line-height:1.12;letter-spacing:-1.5px;
+  margin:0 0 24px;font-weight:800;
+  font-family:var(--font-sans);text-wrap:balance;
+  color:#fff;
+}
+.hero h1 em{
+  color:#34d399;font-style:normal;font-weight:800;
+}
+.hero p{
+  font-size:clamp(15px,1.3vw,18px);color:rgba(255,255,255,.6);
+  line-height:1.7;margin:0 0 40px;max-width:52ch;
+}
+.hcta{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+.hcta .p{
+  display:inline-flex;align-items:center;gap:8px;
+  text-decoration:none;border-radius:6px;padding:14px 32px;
+  font-weight:700;font-size:15px;transition:var(--transition);
+  background:#10b981;color:#fff;
+}
+.hcta .p:hover{background:#34d399;color:var(--ink)}
+.hcta .p svg{transition:transform .2s ease}
+.hcta .p:hover svg{transform:translateX(3px)}
+.hcta .s{
+  text-decoration:none;border-radius:6px;padding:14px 28px;
+  font-weight:600;font-size:15px;transition:var(--transition);
+  border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.7);
+  background:transparent;
+}
+.hcta .s:hover{border-color:rgba(255,255,255,.5);color:#fff}
+/* ── Proof strip ── */
+.proof-strip{
+  background:var(--card);border-bottom:1px solid var(--line);
+  padding:28px 0;
+}
+.proof-inner{
+  max-width:1120px;margin:0 auto;
+  padding:0 clamp(24px,5vw,64px);
+  display:flex;gap:clamp(24px,4vw,56px);align-items:center;
+  flex-wrap:wrap;justify-content:flex-start;
+}
+.proof-item{display:flex;align-items:center;gap:10px}
+.proof-ico{
+  width:36px;height:36px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;flex-shrink:0;
+  background:var(--rec);
+}
+.proof-text{font-size:13.5px;font-weight:600;color:var(--soft);line-height:1.35}
+.proof-text strong{color:var(--ink);font-weight:800;display:block;font-size:15px}
+/* ── How section ── */
+.lsec-wrap{
+  max-width:1120px;margin:0 auto;
+  padding:clamp(48px,7vw,96px) clamp(24px,5vw,64px);
+}
+.lsec-head{margin-bottom:clamp(32px,4vw,48px)}
+.lsec-head h2{
+  font-size:clamp(24px,3vw,32px);font-weight:800;letter-spacing:-0.5px;
+  margin:0 0 8px;color:var(--ink);font-family:var(--font-sans);
+}
+.lsec-head p{color:var(--muted);font-size:15px;font-weight:600;margin:0}
+.flow{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:2px;
+  background:var(--line);border-radius:8px;overflow:hidden;
+}
+.flow-step{
+  background:var(--card);padding:clamp(24px,2.5vw,36px);
+  position:relative;transition:background .2s ease;
+}
+.flow-step:hover{background:var(--rec)}
+.flow-num{
+  font-family:var(--font-mono);font-size:12px;font-weight:800;
+  color:var(--gold);margin-bottom:14px;letter-spacing:1px;
+}
+.flow-step h3{
+  font-size:15.5px;font-weight:800;margin:0 0 8px;
+  color:var(--ink);font-family:var(--font-sans);
+}
+.flow-step p{color:var(--soft);font-size:13px;line-height:1.65;margin:0}
+/* ── Teaser section (today's picks) ── */
+.lsec{
+  max-width:1120px;margin:0 auto;
+  padding:0 clamp(24px,5vw,64px) clamp(48px,6vw,80px);
+}
+.lsec h2{
+  font-size:clamp(22px,2.5vw,28px);font-weight:800;letter-spacing:-0.5px;
+  margin:0 0 8px;color:var(--ink);font-family:var(--font-sans);
+}
 .lsec .ls{color:var(--muted);margin:0 0 28px;font-size:14.5px;font-weight:600}
-.lfoot{border-top:1px solid var(--line);padding:36px 0;color:var(--muted);font-size:13px;margin-top:clamp(48px, 6vw, 80px);text-align:center;font-weight:600}
+/* ── Footer ── */
+.lfoot{
+  border-top:1px solid var(--line);
+  padding:32px clamp(24px,5vw,64px);
+  color:var(--muted);font-size:13px;text-align:center;font-weight:600;
+  max-width:1120px;margin:0 auto;
+}
+/* ── Landing animations ── */
+@keyframes lfadeup{
+  from{opacity:0;transform:translateY(24px)}
+  to{opacity:1;transform:translateY(0)}
+}
+.hero h1,.hero p,.hcta,.proof-item,.flow-step{
+  animation:lfadeup .6s cubic-bezier(.16,1,.3,1) both;
+}
+.hero h1{animation-delay:.1s}
+.hero p{animation-delay:.2s}
+.hcta{animation-delay:.3s}
+.proof-item:nth-child(1){animation-delay:.35s}
+.proof-item:nth-child(2){animation-delay:.4s}
+.proof-item:nth-child(3){animation-delay:.45s}
+.flow-step:nth-child(1){animation-delay:.3s}
+.flow-step:nth-child(2){animation-delay:.4s}
+.flow-step:nth-child(3){animation-delay:.5s}
+.flow-step:nth-child(4){animation-delay:.6s}
+@media(prefers-reduced-motion:reduce){
+  .hero h1,.hero p,.hcta,.proof-item,.flow-step{animation:none}
+}
 @media(max-width:760px){
-  .hero h1{font-size:28px;line-height:1.25}
+  .flow{grid-template-columns:1fr}
+  .proof-inner{flex-direction:column;align-items:flex-start;gap:16px}
 }
 """
 
@@ -710,33 +821,56 @@ def _landing() -> str:
                   f'<p class=ls>每天清晨更新，已判定值不值得做、怎么变现</p>{rows}'
                   f'<p style="margin-top:18px"><a class=cta href="/signup">免费注册看全部</a></p></div>')
 
-    body = f"""<div class=lwrap>
-<div class=lnav><div class=llogo><img class="lg lg-light" src="/static/logo-on-light.png" alt="金羊毛 Argo"><img class="lg lg-dark" src="/static/logo-on-dark.png" alt="金羊毛 Argo"></div>
-<div class=lr><a href="/login">登录</a><a class=s href="/signup">免费注册</a></div></div>
+    today_count = sum(len(o) for _, o in days[:1]) if days else 0
+    total_count = sum(len(o) for _, o in days) if days else 0
+    day_count = len(days) if days else 0
+
+    body = f"""
+<div class=hero-band>
+<nav class=lnav>
+<div class=llogo>
+<img class="lg lg-dark" src="/static/logo-on-dark.png" alt="金羊毛 Argo">
+</div>
+<div class=lr><a href="/login">登录</a><a class=s href="/signup">免费注册</a></div>
+</nav>
 
 <div class=hero>
-<h1>每天帮你找到<em>值得做</em>、<em>能赚钱</em>的产品机会</h1>
-<p>金羊毛 Argo 自动扫描公开数据源，用一套判断框架筛掉伪机会，只留下「有人在痛、有人愿掏钱」的方向，并给出痛点、谁买单、怎么变现、如何切入。</p>
-<div class=hcta><a class=p href="/signup">免费开始</a></div>
+<h1>每天帮你找到<br><em>值得做</em>、<em>能赚钱</em>的产品机会</h1>
+<p>自动扫描公开数据源，用真需求框架筛掉伪机会，只留下「有人在痛、有人愿掏钱」的方向——痛点、谁买单、怎么变现、如何切入，全部给到。</p>
+<div class=hcta>
+<a class=p href="/signup">免费开始 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></a>
+<a class=s href="/agent">Agent 接入</a>
+</div>
+</div>
 </div>
 
-<div class=steps>
-<div class=step><span class=ico>🔭</span><h3>广度扫描</h3><p>每天自动扫 Reddit、Product Hunt 等公开源，捞出真实需求线索。</p></div>
-<div class=step><span class=ico>🧪</span><h3>机会判定</h3><p>价值·共识·模式·求真四道闸 + 三面镜子，戳破伪机会。</p></div>
-<div class=step><span class=ico>💰</span><h3>变现分析</h3><p>痛点、谁愿意付费、变现路径、切入点、风险，一条一条讲清。</p></div>
-<div class=step><span class=ico>🗣️</span><h3>随时深挖</h3><p>网页或 Telegram 里直接追问某条机会，像有个操盘军师。</p></div>
+<div class=proof-strip>
+<div class=proof-inner>
+<div class=proof-item><div class=proof-ico>📡</div><div class=proof-text><strong>多平台覆盖</strong>公开数据源实时扫描</div></div>
+<div class=proof-item><div class=proof-ico>🧠</div><div class=proof-text><strong>四道闸 + 三面镜</strong>真需求判定框架</div></div>
+<div class=proof-item><div class=proof-ico>📊</div><div class=proof-text><strong>{total_count if total_count else '—'} 条机会 · {day_count if day_count else '—'} 天</strong>持续积累中</div></div>
+</div>
+</div>
+
+<div class=lsec-wrap>
+<div class=lsec-head><h2>从噪音到决策，四步完成</h2><p>每天清晨自动跑完全流程，你只看结果</p></div>
+<div class=flow>
+<div class=flow-step><div class=flow-num>SCAN</div><h3>广度扫描</h3><p>每天自动扫多个公开数据源，捞出真实需求线索。</p></div>
+<div class=flow-step><div class=flow-num>JUDGE</div><h3>机会判定</h3><p>价值·共识·模式·求真四道闸 + 三面镜子，戳破伪机会、标记真机会。</p></div>
+<div class=flow-step><div class=flow-num>ANALYZE</div><h3>变现分析</h3><p>痛点、谁愿意付费、变现路径、切入点、风险，逐条结构化输出。</p></div>
+<div class=flow-step><div class=flow-num>DIVE</div><h3>随时深挖</h3><p>网页或 Telegram 里直接追问某条机会，像有个懂行的操盘军师。</p></div>
+</div>
 </div>
 
 {teaser}
 
-<div class=lfoot>金羊毛 Argo · 私人产品机会雷达 · 真实判断不谄媚</div>
-</div>"""
+<div class=lfoot>金羊毛 Argo · 私人产品机会雷达</div>
+"""
     return f"""<!doctype html><html lang=zh><head><meta charset=utf-8>
 <meta name=viewport content="width=device-width,initial-scale=1">
 <title>金羊毛 Argo · 每天找到值得做、能赚钱的产品机会</title>
 <meta name=description content="自动扫描公开源，筛出有人在痛、有人愿掏钱的产品机会，给出痛点、变现路径与切入点。">
 <style>{_CSS}{_LAND_CSS}</style>
-<script>(function(){{if(localStorage.getItem('argo-theme')==='dark')document.documentElement.setAttribute('data-theme','dark')}})();</script>
 </head><body>{body}</body></html>"""
 
 
