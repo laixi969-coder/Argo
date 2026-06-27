@@ -64,7 +64,7 @@ body{
   letter-spacing:-0.1px;
   transition:background 0.3s ease, color 0.3s ease;
 }
-.layout{display:flex;max-width:100%;margin:0;align-items:flex-start;padding:0 24px}
+.layout{display:flex;max-width:1440px;margin:0 auto;align-items:flex-start;padding:0 40px}
 .side{
   width:228px;
   flex-shrink:0;
@@ -77,9 +77,9 @@ body{
   flex-direction:column;
   transition:border-color 0.3s ease;
 }
-.main{flex:1;min-width:0;padding:28px 32px 80px}
-.logo{height:54px;overflow:hidden;display:flex;align-items:center;justify-content:flex-start;padding-left:4px;margin-bottom:8px}
-.lg{width:178px;height:auto;display:block}.lg-dark{display:none}
+.main{flex:1;min-width:0;padding:32px 40px 80px;max-width:960px}
+.logo{overflow:hidden;display:flex;align-items:center;justify-content:flex-start;padding-left:4px;margin-bottom:12px}
+.lg{height:40px;width:auto;display:block}.lg-dark{display:none}
 html[data-theme=dark] .lg-light{display:none}html[data-theme=dark] .lg-dark{display:block}
 a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-offset:2px;border-radius:2px}
 .grp{font-size:10.5px;letter-spacing:2px;color:var(--muted);margin:24px 0 8px;padding-left:10px;text-transform:uppercase;font-weight:700}
@@ -507,12 +507,12 @@ html[data-theme=dark] .snav a:hover{background:#17261f}
 html[data-theme=dark] .rec{border-color:var(--line)}
 html[data-theme=dark] .gate{background:#132c21}
 @media(max-width:760px){
-  .layout{flex-direction:column}
-  .side{width:auto;height:auto;position:static;border-right:none;border-bottom:1px solid var(--line);padding:20px}
+  .layout{flex-direction:column;padding:0 20px}
+  .side{width:auto;height:auto;position:static;border-right:none;border-bottom:1px solid var(--line);padding:20px 0}
   .snav{flex-direction:row;flex-wrap:wrap;gap:6px}
   .snav a{padding:10px 14px}
   .pager{gap:26px}
-  .main{padding:24px 20px 60px}
+  .main{padding:24px 0 60px}
   .rail{width:44px}
   .themebtn{margin-top:16px}
 }
@@ -649,50 +649,28 @@ def _feed(opps: list[dict]) -> str:
 
 
 _LAND_CSS = """
-.lwrap{max-width:100%;margin:0;padding:0 24px}
-.lnav{display:flex;align-items:center;justify-content:space-between;padding:24px 0;border-bottom:1px solid var(--line);transition:border-color 0.3s ease}
-.lnav .llogo{height:54px}
+.lwrap{max-width:1080px;margin:0 auto;padding:0 clamp(24px, 5vw, 64px)}
+.lnav{display:flex;align-items:center;justify-content:space-between;padding:28px 0;border-bottom:1px solid var(--line);transition:border-color 0.3s ease}
+.lnav .llogo{display:flex;align-items:center}
+.lnav .llogo .lg{height:44px;width:auto}
 .lnav .lr{display:flex;gap:20px;align-items:center;font-size:14px}
 .lnav .lr a{color:var(--soft);text-decoration:none;font-weight:600;transition:var(--transition)}
 .lnav .lr a:hover{color:var(--ink)}
 .lnav .lr a.s{background:var(--gold);color:#fff;padding:9px 18px;border-radius:4px;font-weight:700}
 .lnav .lr a.s:hover{background:var(--goldbright)}
-.hero{padding:80px 0 48px;max-width:100%}
-.hero h1{font-size:44px;line-height:1.2;letter-spacing:-1px;margin:0 0 20px;font-weight:800;color:var(--ink);font-family:var(--font-sans)}
+.hero{padding:clamp(48px, 8vw, 120px) 0 clamp(32px, 5vw, 64px)}
+.hero h1{font-size:clamp(28px, 4vw, 48px);line-height:1.2;letter-spacing:-0.5px;margin:0 0 20px;font-weight:800;color:var(--ink);font-family:var(--font-sans);text-wrap:balance}
 .hero h1 em{color:var(--gold);font-style:normal;font-weight:800}
-.hero p{font-size:17px;color:var(--soft);line-height:1.65;margin:0 0 32px;max-width:64ch}
+.hero p{font-size:clamp(15px, 1.2vw, 17px);color:var(--soft);line-height:1.7;margin:0 0 36px;max-width:58ch}
 .hcta{display:flex;gap:14px;flex-wrap:wrap}
 .hcta a{text-decoration:none;border-radius:4px;padding:14px 28px;font-weight:700;font-size:15px;transition:var(--transition)}
 .hcta .p{background:var(--gold);color:#fff}
 .hcta .p:hover{background:var(--goldbright)}
 .hcta .s{border:1px solid var(--line);color:var(--ink);background:var(--card)}
 .hcta .s:hover{border-color:var(--gold);background:var(--rec)}
-.inline-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-family: var(--font-mono);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  background: var(--rec);
-  color: var(--soft);
-  padding: 3px 10px;
-  border-radius: 2px;
-  vertical-align: middle;
-  margin: 0 6px;
-  transform: translateY(-3px);
-  border: 1px solid var(--line);
-}
-.inline-badge.accent {
-  background: var(--amber);
-  color: var(--gold);
-  border-color: var(--gold);
-}
-.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin:60px 0}
+.steps{display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:20px;margin:clamp(40px, 6vw, 80px) 0}
 .step{
-  padding:24px;
+  padding:28px;
   border:1px solid var(--line);
   border-radius:4px;
   background:var(--card);
@@ -703,16 +681,14 @@ _LAND_CSS = """
   box-shadow:0 8px 20px rgba(0, 47, 167, 0.04);
   border-color:var(--gold);
 }
-.step .n{color:var(--gold);font-weight:800;font-size:13.5px;font-family:var(--font-mono)}
-.step h3{margin:10px 0 6px;font-size:15.5px;font-weight:800;color:var(--ink);font-family:var(--font-sans)}
+.step .ico{font-size:22px;margin-bottom:10px;display:block}
+.step h3{margin:0 0 6px;font-size:15.5px;font-weight:800;color:var(--ink);font-family:var(--font-sans)}
 .step p{color:var(--soft);font-size:13px;line-height:1.6;margin:0}
-.lsec{margin:80px 0}.lsec h2{font-size:26px;font-weight:800;letter-spacing:-0.5px;margin:0 0 10px;color:var(--ink);font-family:var(--font-sans)}
+.lsec{margin:clamp(48px, 6vw, 80px) 0}.lsec h2{font-size:clamp(22px, 2.5vw, 26px);font-weight:800;letter-spacing:-0.5px;margin:0 0 10px;color:var(--ink);font-family:var(--font-sans)}
 .lsec .ls{color:var(--muted);margin:0 0 28px;font-size:14.5px;font-weight:600}
-.lfoot{border-top:1px solid var(--line);padding:32px 0;color:var(--muted);font-size:13px;margin-top:80px;text-align:center;font-weight:600}
+.lfoot{border-top:1px solid var(--line);padding:36px 0;color:var(--muted);font-size:13px;margin-top:clamp(48px, 6vw, 80px);text-align:center;font-weight:600}
 @media(max-width:760px){
-  .hero h1{font-size:34px;line-height:1.25}
-  .steps{grid-template-columns:1fr 1fr}
-  .inline-badge{display:none}
+  .hero h1{font-size:28px;line-height:1.25}
 }
 """
 
@@ -735,20 +711,20 @@ def _landing() -> str:
                   f'<p style="margin-top:18px"><a class=cta href="/signup">免费注册看全部</a></p></div>')
 
     body = f"""<div class=lwrap>
-<div class=lnav><img class=llogo src="/static/logo-on-light.png" alt="金羊毛 Argo">
+<div class=lnav><div class=llogo><img class="lg lg-light" src="/static/logo-on-light.png" alt="金羊毛 Argo"><img class="lg lg-dark" src="/static/logo-on-dark.png" alt="金羊毛 Argo"></div>
 <div class=lr><a href="/login">登录</a><a class=s href="/signup">免费注册</a></div></div>
 
 <div class=hero>
-<h1>每天帮你找到 <span class="inline-badge">Worth-doing</span> <em>值得做</em>、<span class="inline-badge accent">Profitable</span> <em>能赚钱</em>的产品机会</h1>
+<h1>每天帮你找到<em>值得做</em>、<em>能赚钱</em>的产品机会</h1>
 <p>金羊毛 Argo 自动扫描公开数据源，用一套判断框架筛掉伪机会，只留下「有人在痛、有人愿掏钱」的方向，并给出痛点、谁买单、怎么变现、如何切入。</p>
 <div class=hcta><a class=p href="/signup">免费开始</a></div>
 </div>
 
 <div class=steps>
-<div class=step><div class=n>01</div><h3>广度扫描</h3><p>每天自动扫 Reddit、Product Hunt 等公开源，捞出真实需求线索。</p></div>
-<div class=step><div class=n>02</div><h3>机会判定</h3><p>价值·共识·模式·求真四道闸 + 三面镜子，戳破伪机会。</p></div>
-<div class=step><div class=n>03</div><h3>变现分析</h3><p>痛点、谁愿意付费、变现路径、切入点、风险，一条一条讲清。</p></div>
-<div class=step><div class=n>04</div><h3>随时深挖</h3><p>网页或 Telegram 里直接追问某条机会，像有个操盘军师。</p></div>
+<div class=step><span class=ico>🔭</span><h3>广度扫描</h3><p>每天自动扫 Reddit、Product Hunt 等公开源，捞出真实需求线索。</p></div>
+<div class=step><span class=ico>🧪</span><h3>机会判定</h3><p>价值·共识·模式·求真四道闸 + 三面镜子，戳破伪机会。</p></div>
+<div class=step><span class=ico>💰</span><h3>变现分析</h3><p>痛点、谁愿意付费、变现路径、切入点、风险，一条一条讲清。</p></div>
+<div class=step><span class=ico>🗣️</span><h3>随时深挖</h3><p>网页或 Telegram 里直接追问某条机会，像有个操盘军师。</p></div>
 </div>
 
 {teaser}
