@@ -29,7 +29,7 @@ def _base():
 def _search_keyword(keyword: str, count: int = _PER_KEYWORD) -> list[dict]:
     """搜索单个关键词，返回统一格式的 post 列表。"""
     r = requests.get(
-        f"{_base()}/api/v1/tiktok/app/v3/search/general/",
+        f"{_base()}/api/v1/tiktok/app/v3/fetch_general_search_result",
         headers=_headers(),
         params={"keyword": keyword, "count": count, "offset": 0},
         timeout=30,
@@ -60,7 +60,7 @@ def _search_keyword(keyword: str, count: int = _PER_KEYWORD) -> list[dict]:
         )
 
         items.append({
-            "source": "tikhub",
+            "source": "tiktok",
             "title": desc[:80],
             "raw_text": desc,
             "url": share_url,

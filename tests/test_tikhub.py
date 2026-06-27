@@ -37,7 +37,7 @@ def test_fetch_parses_videos(monkeypatch):
     monkeypatch.setattr(tikhub.requests, "get", lambda *a, **k: _Resp(payload))
     out = tikhub.fetch()
     assert len(out) > 0
-    assert out[0]["source"] == "tikhub"
+    assert out[0]["source"] == "tiktok"
     assert out[0]["signal"] == 50.0
     assert "I wish" in out[0]["title"]
 

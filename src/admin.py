@@ -235,89 +235,63 @@ TESTERS = {
 }
 
 
-class AdminHandler(BaseHTTPRequestHandler):
-    server_version = "ArgoAdmin/1.0"
+def _parse_body(raw_bytes, content_type=""):
+    """解析请求 body：JSON 或 form。"""
+    raw = raw_bytes.decode("utf-8") if isinstance(raw_bytes, bytes) else raw_bytes
+    if "application/json" in content_type:
+        return json.loads(raw or "{}")
+    return {key: values[-1] for key, values in parse_qs(raw).items()}
 
-    def log_message(self, fmt, *args):
-        # 不记录表单、Cookie 或密钥，只保留请求摘要。
-        print(f"[admin] {self.address_string()} {fmt % args}")
 
-    def _json(self, payload, status=HTTPStatus.OK, headers=None):
-        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-        self.send_response(status)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Cache-Control", "no-store")
-        self.send_header("X-Content-Type-Options", "nosniff")
-        if headers:
-            for key, value in headers.items():
-                self.send_header(key, value)
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
+def _get_session(headers):
+    """从请求头取 admin session。"""
+    cookie = SimpleCookie(headers.get("Cookie", "") if isinstance(headers, dict) else headers.get("cookie", ""))
+    token = cookie.get("argo_session")
+    if not token:
+        return None
+    session = SESSIONS.get(token.value)
+    if not session or session["expires"] < time.time():
+        SESSIONS.pop(token.value, None)
+        return None
+    return session
 
-    def _page(self):
-        body = PAGE_PATH.read_bytes()
-        self.send_response(HTTPStatus.OK)
-        self.send_header("Content-Type", "text/html; charset=utf-8")
-        self.send_header("Cache-Control", "no-store")
-        self.send_header("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:")
-        self.send_header("X-Frame-Options", "DENY")
-        self.send_header("X-Content-Type-Options", "nosniff")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
 
-    def _body(self):
-        size = int(self.headers.get("Content-Length", "0"))
-        if size > 64_000:
-            raise ValueError("请求过大")
-        raw = self.rfile.read(size).decode("utf-8")
-        if "application/json" in self.headers.get("Content-Type", ""):
-            return json.loads(raw or "{}")
-        return {key: values[-1] for key, values in parse_qs(raw).items()}
+def _json_resp(payload, status=200, headers=None):
+    return (status, "application/json", json.dumps(payload, ensure_ascii=False), headers or {})
 
-    def _session(self):
-        cookie = SimpleCookie(self.headers.get("Cookie", ""))
-        token = cookie.get("argo_session")
-        if not token:
-            return None
-        session = SESSIONS.get(token.value)
-        if not session or session["expires"] < time.time():
-            SESSIONS.pop(token.value, None)
-            return None
-        return session
 
-    def _require_session(self, csrf=False):
-        session = self._session()
-        if not session:
-            self._json({"ok": False, "error": "请先登录"}, HTTPStatus.UNAUTHORIZED)
-            return None
-        if csrf and not secrets.compare_digest(
-            self.headers.get("X-CSRF-Token", ""), session["csrf"]
-        ):
-            self._json({"ok": False, "error": "安全令牌失效，请刷新页面"}, HTTPStatus.FORBIDDEN)
-            return None
-        return session
+def _page_resp():
+    body = PAGE_PATH.read_text("utf-8")
+    return (200, "text/html", body, {})
 
-    def do_GET(self):
-        path = urlsplit(self.path).path
+
+def handle_request(method, path, body=b"", headers=None):
+    """纯函数路由：返回 (status, content_type, body_text, extra_headers_dict)。
+
+    可被 web.py 调用，也可被 AdminHandler 调用。
+    path 不含 /settings 前缀（调用方负责剥离）。
+    """
+    headers = headers or {}
+    path = urlsplit(path).path
+
+    if method == "GET":
         if path == "/":
-            return self._page()
+            return _page_resp()
         if path == "/api/session":
-            session = self._session()
-            return self._json({"authenticated": bool(session), "csrf": session["csrf"] if session else ""})
+            session = _get_session(headers)
+            return _json_resp({"authenticated": bool(session), "csrf": session["csrf"] if session else ""})
         if path == "/api/settings":
-            if not self._require_session():
-                return
-            return self._json({"ok": True, "settings": safe_settings(_read_values())})
-        self.send_error(HTTPStatus.NOT_FOUND)
+            session = _get_session(headers)
+            if not session:
+                return _json_resp({"ok": False, "error": "请先登录"}, 401)
+            return _json_resp({"ok": True, "settings": safe_settings(_read_values())})
+        return _json_resp({"error": "not found"}, 404)
 
-    def do_POST(self):
-        path = urlsplit(self.path).path
+    if method == "POST":
         try:
-            payload = self._body()
+            payload = _parse_body(body, headers.get("Content-Type", "") or headers.get("content-type", ""))
         except (ValueError, json.JSONDecodeError) as exc:
-            return self._json({"ok": False, "error": str(exc)}, HTTPStatus.BAD_REQUEST)
+            return _json_resp({"ok": False, "error": str(exc)}, 400)
 
         if path == "/api/login":
             values = _read_values()
@@ -325,40 +299,83 @@ class AdminHandler(BaseHTTPRequestHandler):
             password_ok = verify_password(str(payload.get("password", "")), values.get("ADMIN_PASSWORD_HASH", ""))
             if not email_ok or not password_ok:
                 time.sleep(0.5)
-                return self._json({"ok": False, "error": "邮箱或密码错误"}, HTTPStatus.UNAUTHORIZED)
+                return _json_resp({"ok": False, "error": "邮箱或密码错误"}, 401)
             token, csrf = secrets.token_urlsafe(32), secrets.token_urlsafe(24)
             SESSIONS[token] = {"csrf": csrf, "expires": time.time() + SESSION_TTL}
-            return self._json(
+            return _json_resp(
                 {"ok": True, "csrf": csrf},
                 headers={"Set-Cookie": f"argo_session={token}; HttpOnly; SameSite=Strict; Path=/; Max-Age={SESSION_TTL}"},
             )
 
-        session = self._require_session(csrf=True)
+        session = _get_session(headers)
         if not session:
-            return
+            return _json_resp({"ok": False, "error": "请先登录"}, 401)
+        csrf_token = headers.get("X-CSRF-Token", "") or headers.get("x-csrf-token", "")
+        if not secrets.compare_digest(csrf_token, session["csrf"]):
+            return _json_resp({"ok": False, "error": "安全令牌失效，请刷新页面"}, 403)
+
         if path == "/api/settings":
             try:
                 save_settings(payload)
-                return self._json({"ok": True, "message": "设置已安全保存"})
+                return _json_resp({"ok": True, "message": "设置已安全保存"})
             except ValueError as exc:
-                return self._json({"ok": False, "error": str(exc)}, HTTPStatus.BAD_REQUEST)
+                return _json_resp({"ok": False, "error": str(exc)}, 400)
         if path == "/api/models":
             try:
                 models = fetch_models(merged_settings(payload))
-                return self._json({"ok": True, "models": models})
+                return _json_resp({"ok": True, "models": models})
             except Exception as exc:
-                return self._json({"ok": False, "error": str(exc)}, HTTPStatus.BAD_GATEWAY)
+                return _json_resp({"ok": False, "error": str(exc)}, 502)
         if path == "/api/test":
             service = str(payload.get("service", ""))
             tester = TESTERS.get(service)
             if not tester:
-                return self._json({"ok": False, "error": "未知服务"}, HTTPStatus.BAD_REQUEST)
+                return _json_resp({"ok": False, "error": "未知服务"}, 400)
             try:
                 message = tester(merged_settings(payload))
-                return self._json({"ok": True, "message": message})
+                return _json_resp({"ok": True, "message": message})
             except Exception as exc:
-                return self._json({"ok": False, "error": str(exc)}, HTTPStatus.BAD_GATEWAY)
-        self.send_error(HTTPStatus.NOT_FOUND)
+                return _json_resp({"ok": False, "error": str(exc)}, 502)
+        return _json_resp({"error": "not found"}, 404)
+
+    return _json_resp({"error": "method not allowed"}, 405)
+
+
+class AdminHandler(BaseHTTPRequestHandler):
+    server_version = "ArgoAdmin/1.0"
+
+    def log_message(self, fmt, *args):
+        print(f"[admin] {self.address_string()} {fmt % args}")
+
+    def _dispatch(self, method):
+        path = self.path
+        length = int(self.headers.get("Content-Length", "0"))
+        if length > 64_000:
+            self.send_response(413)
+            self.end_headers()
+            return
+        body = self.rfile.read(length) if length else b""
+        hdrs = {k: v for k, v in self.headers.items()}
+        status, ctype, text, extra = handle_request(method, path, body, hdrs)
+        payload = text.encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", f"{ctype}; charset=utf-8")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        if ctype == "text/html":
+            self.send_header("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:")
+            self.send_header("X-Frame-Options", "DENY")
+        for k, v in extra.items():
+            self.send_header(k, v)
+        self.send_header("Content-Length", str(len(payload)))
+        self.end_headers()
+        self.wfile.write(payload)
+
+    def do_GET(self):
+        self._dispatch("GET")
+
+    def do_POST(self):
+        self._dispatch("POST")
 
 
 def run(host=HOST, port=PORT):

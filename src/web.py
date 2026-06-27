@@ -19,7 +19,7 @@ import urllib.parse
 from datetime import date
 from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from src import config, agent, telegram, store, auth, users, plans, billing, saved, mailer
+from src import config, agent, telegram, store, auth, users, plans, billing, saved, mailer, admin
 
 STATIC = Path(__file__).resolve().parent.parent / "static"
 _req_user: contextvars.ContextVar = contextvars.ContextVar("req_user", default=None)
@@ -520,7 +520,7 @@ html[data-theme=dark] .gate{background:#132c21}
 
 _NAV = [("内容", [("/", "精选"), ("/all", "全部机会"), ("/daily", "AI 日报"), ("/saved", "我的收藏")]),
         ("接入", [("/agent", "Agent 接入")]),
-        ("更多", [("/feedback", "反馈")])]
+        ("更多", [("/feedback", "反馈"), ("/settings", "舰长设置")])]
 
 
 _WD = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
@@ -553,12 +553,22 @@ def _vclass(v: str) -> str:
     return {"伪机会": "tag vf", "待验证": "tag vw"}.get(v, "tag v")
 
 
+def _is_super_admin() -> bool:
+    u = _req_user.get()
+    admin_email = config.get("ARGO_ADMIN_EMAIL")
+    return bool(u and admin_email and u["email"] == admin_email)
+
+
 def _sidebar(active: str) -> str:
     groups = ""
+    is_admin = _is_super_admin()
     for gname, items in _NAV:
+        visible = [(h, t) for h, t in items if h != "/settings" or is_admin]
+        if not visible:
+            continue
         links = "".join(
             f'<a href="{h}" class="{"on" if h == active else ""}">{t}</a>'
-            for h, t in items)
+            for h, t in visible)
         groups += f'<div class=grp>{gname}</div><div class=snav>{links}</div>'
     return f"""<aside class=side>
 <div class=logo>
@@ -1299,6 +1309,10 @@ class _Handler(BaseHTTPRequestHandler):
         # 静态资源（logo 等）直接送字节
         if method == "GET" and self.path.startswith("/static/"):
             return self._send_static(self.path.split("?")[0][len("/static/"):])
+        # 舰长设置：委托给 admin 模块
+        raw_path = self.path.split("?")[0]
+        if raw_path == "/settings" or raw_path.startswith("/settings/"):
+            return self._send_settings(method)
         length = int(self.headers.get("content-length", 0) or 0)
         body = self.rfile.read(length) if length else b""
         hdrs = {k.lower(): v for k, v in self.headers.items()}
@@ -1340,6 +1354,25 @@ class _Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "max-age=86400")
         self.end_headers()
         self.wfile.write(data)
+
+    def _send_settings(self, method):
+        """转发 /settings 请求给 admin.handle_request，剥掉 /settings 前缀。"""
+        length = int(self.headers.get("content-length", 0) or 0)
+        body = self.rfile.read(length) if length else b""
+        hdrs = {k: v for k, v in self.headers.items()}
+        # 剥前缀：/settings → /，/settings/api/login → /api/login
+        inner = self.path[len("/settings"):] or "/"
+        status, ctype, text, extra = admin.handle_request(method, inner, body, hdrs)
+        payload = text.encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", f"{ctype}; charset=utf-8")
+        self.send_header("Cache-Control", "no-store")
+        self._sec_headers()
+        for k, v in extra.items():
+            self.send_header(k, v)
+        self.send_header("Content-Length", str(len(payload)))
+        self.end_headers()
+        self.wfile.write(payload)
 
     def do_GET(self):
         self._send("GET")
