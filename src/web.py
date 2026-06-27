@@ -70,7 +70,7 @@ body{
   flex-shrink:0;
   position:sticky;
   top:0;
-  height:100vh;
+  height:100dvh;
   padding:28px 20px;
   border-right:1px solid var(--line);
   display:flex;
@@ -127,7 +127,7 @@ h1.ttl{font-size:26px;font-weight:800;letter-spacing:-0.5px;margin:0;font-family
   color:var(--ink);
   font-family:var(--font-sans);
 }
-.search input:focus{border-color:var(--goldbright);box-shadow:0 0 0 3px rgba(29, 78, 216, 0.15)}
+.search input:focus{border-color:var(--goldbright);box-shadow:0 0 0 3px rgba(0, 93, 83, 0.15)}
 .search button{
   border:none;
   background:var(--gold);
@@ -176,7 +176,7 @@ article{
   transition:var(--transition-spring);
 }
 article:hover{
-  box-shadow:0 8px 20px rgba(0, 47, 167, 0.04);
+  box-shadow:0 8px 20px rgba(0, 93, 83, 0.06);
   border-color:var(--gold);
 }
 .meta{font-size:12px;color:var(--muted);display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-weight:600}
@@ -195,7 +195,11 @@ h3 a:hover{color:var(--gold)}
 .pager{display:flex;justify-content:center;align-items:center;gap:20px;margin:44px 0 12px;font-size:14px}
 .pager a{color:var(--gold);text-decoration:none;font-weight:700;transition:var(--transition)}.pager a:hover{color:var(--goldbright)}
 .pager span{color:var(--muted);font-weight:600}
-.empty{color:var(--muted);padding:68px 0;text-align:center;font-size:14.5px}
+.empty{color:var(--muted);padding:68px 24px;text-align:center;font-size:14.5px;line-height:1.65}
+.empty svg{display:block;margin:0 auto 16px;opacity:.35}
+.empty b{display:block;color:var(--soft);font-size:15px;margin-bottom:6px}
+.empty a{color:var(--gold);font-weight:700;text-decoration:none}
+.empty a:hover{color:var(--goldbright)}
 .back{color:var(--muted);text-decoration:none;font-size:14px;font-weight:600;transition:var(--transition);display:inline-flex;align-items:center;gap:4px}
 .back:hover{color:var(--ink)}
 .dtop{display:flex;justify-content:space-between;align-items:center}
@@ -210,7 +214,7 @@ h3 a:hover{color:var(--gold)}
   cursor:pointer;
   transition:var(--transition);
 }
-.savebtn:active{transform:translate(1px)}
+.savebtn:active{transform:translateY(1px)}
 .savebtn:hover{border-color:var(--gold);color:var(--gold)}
 .savebtn.on{background:var(--green-bg);color:var(--green-text);border-color:var(--green-text)}
 .delbtn{
@@ -303,7 +307,7 @@ h2.dttl{
   transition:var(--transition);
   outline:none;
 }
-.chatin textarea:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(255, 85, 0, 0.15)}
+.chatin textarea:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(0, 93, 83, 0.15)}
 .chatin button{
   background:var(--gold);
   color:#fff;
@@ -318,6 +322,8 @@ h2.dttl{
 }
 .chatin button:hover:not(:disabled){background:var(--goldbright)}
 .chatin button:disabled{opacity:.6;cursor:default}
+@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+.ca.loading{background:linear-gradient(90deg,var(--rec) 25%,var(--line) 50%,var(--rec) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;min-height:48px;border:1px solid var(--line)}
 .discuss{background:#12141c;color:#e2e8f0;border-radius:4px;padding:16px 20px;margin-top:20px;font-size:13px;line-height:1.65;font-family:var(--font-mono);border:1px solid var(--line)}
 .discuss code{background:#1e222a;color:#e2e8f0;padding:2px 7px;border-radius:2px}
 code{background:var(--rec);padding:2px 7px;border-radius:2px;font-size:13px;font-family:var(--font-mono);color:var(--ink)}
@@ -370,7 +376,7 @@ pre{background:#12141c;color:#e2e8f0;padding:16px;border-radius:4px;overflow:aut
   outline:none;
   font-family:var(--font-mono);
 }
-.authform input:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(255, 85, 0, 0.15)}
+.authform input:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(0, 93, 83, 0.15)}
 .authform button{
   background:var(--gold);
   color:#fff;
@@ -388,7 +394,7 @@ pre{background:#12141c;color:#e2e8f0;padding:16px;border-radius:4px;overflow:aut
 .alt{margin-top:18px;color:var(--muted);font-size:13.5px;text-align:center;line-height:1.6}.alt a,.err a{color:var(--gold);font-weight:700;text-decoration:none}
 .alt a:hover{color:var(--goldbright)}
 .err{background:var(--red-bg);color:var(--red-text);border-radius:4px;padding:12px 16px;margin-top:16px;font-size:13.5px;font-weight:600;border:1px solid rgba(239,68,68,0.15)}
-.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.metrics{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:16px}
 .mcard{border:1px solid var(--line);border-radius:4px;padding:20px 24px;background:var(--card);box-shadow:none}
 .mn{font-size:30px;font-weight:800;color:var(--gold);font-family:var(--font-mono);line-height:1}
 .ml{color:var(--muted);font-size:13px;margin-top:6px;font-weight:600}
@@ -400,7 +406,7 @@ pre{background:#12141c;color:#e2e8f0;padding:16px;border-radius:4px;overflow:aut
 .tbar{width:50%;max-width:28px;background:var(--gold);border-radius:2px 2px 0 0;min-height:4px;transition:var(--transition)}
 .tbar:hover{background:var(--goldbright);transform:scaleY(1.05)}
 .tlab{font-size:10.5px;color:var(--muted);font-family:var(--font-mono);font-weight:700}
-@media(max-width:760px){.metrics{grid-template-columns:1fr 1fr}}
+@media(max-width:768px){.metrics{grid-template-columns:1fr 1fr}}
 .lockwrap{
   margin-top:20px;
   border:1px solid var(--line);
@@ -458,7 +464,7 @@ html[data-theme=dark] .gate{background:#2e1610}
 .pname{font-weight:800;font-size:17px;color:var(--ink);font-family:var(--font-sans)}
 .pprice{font-size:28px;font-weight:800;color:var(--gold);margin:8px 0 14px;font-family:var(--font-mono)}
 .pblurb{color:var(--soft);font-size:13.5px;line-height:1.65;margin-bottom:20px;min-height:50px}
-@media(max-width:760px){.pricing{grid-template-columns:1fr}}
+@media(max-width:768px){.pricing{grid-template-columns:1fr}}
 .themebtn{
   margin-top:18px;
   border:1px solid var(--line);
@@ -485,9 +491,9 @@ html[data-theme=dark]{
   --bg:#08120e;
   --ink:#f0f7f4;
   --soft:#91a79f;
-  --gold:#10b981;
-  --goldbright:#34d399;
-  --navy:#059669;
+  --gold:#0d9488;
+  --goldbright:#2dd4bf;
+  --navy:#0d9488;
   --card:#111f18;
   --muted:#5c7069;
   --line:#1e3027;
@@ -495,7 +501,7 @@ html[data-theme=dark]{
   --recink:#f0f7f4;
   --amber:#132c21;
   --green-bg:#0b2b1f;
-  --green-text:#10b981;
+  --green-text:#0d9488;
   --red-bg:#2d1212;
   --red-text:#ef4444;
   --amber-bg:#2b1d0e;
@@ -506,15 +512,21 @@ html[data-theme=dark] .tabs a,html[data-theme=dark] .tag,html[data-theme=dark] c
 html[data-theme=dark] .snav a:hover{background:#17261f}
 html[data-theme=dark] .rec{border-color:var(--line)}
 html[data-theme=dark] .gate{background:#132c21}
-@media(max-width:760px){
+@media(max-width:768px){
   .layout{flex-direction:column;padding:0 20px}
   .side{width:auto;height:auto;position:static;border-right:none;border-bottom:1px solid var(--line);padding:20px 0}
-  .snav{flex-direction:row;flex-wrap:wrap;gap:6px}
-  .snav a{padding:10px 14px}
+  .grp{display:none}
+  .snav{flex-direction:row;flex-wrap:nowrap;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:4px}
+  .snav::-webkit-scrollbar{display:none}
+  .snav a{padding:10px 14px;white-space:nowrap;flex-shrink:0}
   .pager{gap:26px}
   .main{padding:24px 0 60px}
   .rail{width:44px}
   .themebtn{margin-top:16px}
+  .acct{display:none}
+  .toolbar{flex-direction:column;align-items:stretch}
+  .search{width:100%}
+  .search input{flex:1;width:auto}
 }
 """
 
@@ -882,7 +894,7 @@ def _featured(welcome: bool = False) -> str:
     head = (wb + '<h1 class=ttl>精选</h1><p class=sub>有人在痛 + 有人愿掏钱 · AI 筛出的产品机会</p><div class=hr></div>')
     head += _toolbar("全部", "")
     if not days:
-        return _page("金羊毛 Argo", head + '<p class=empty>还没有机会数据（流水线还没跑）。</p>', "/")
+        return _page("金羊毛 Argo", head + '<div class=empty><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><b>流水线还没跑</b>跑一次 <code>python3 -m src.main</code> 就有数据了</div>', "/")
     day, opps = days[0]
     ranked = sorted(opps, key=lambda x: x.get("score", 0), reverse=True)
     body = (head + _hot(ranked[:3]) + f'<h2 class=daygrp>{esc(day)} {_weekday(day)} · {len(opps)} 条</h2>'
@@ -914,7 +926,7 @@ def _all(query: dict) -> str:
     title = f'搜索「{esc(q)}」' if q else ('全部机会' if cat == '全部' else cat)
     body = f'<h1 class=ttl>{title}</h1><p class=sub>共 {total} 条</p><div class=hr></div>' + _toolbar(cat, q)
     if not chunk:
-        body += '<p class=empty>没有匹配的机会。</p>'
+        body += '<div class=empty><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><b>没有匹配的机会</b>试试换个关键词或清掉筛选条件</div>'
     else:
         cur_day, n = None, 0
         for o in chunk:
@@ -933,7 +945,7 @@ def _all(query: dict) -> str:
 def _detail(item_id: str) -> tuple[int, str]:
     o = store.get(item_id)
     if not o:
-        return 404, _page("未找到", '<a class=back href="/all"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 2px;"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>返回</a><p class=empty>没有这条机会。</p>', "")
+        return 404, _page("未找到", '<a class=back href="/all"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 2px;"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>返回</a><div class=empty><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><b>没有这条机会</b>可能已被移除或 ID 有误</div>', "")
     domain = urllib.parse.urlsplit(o.get("url", "")).netloc or "原文"
     tags = "".join(f'<span class=tag>{esc(t)}</span>' for t in [o.get("category", "未分类")])
     body = f"""<div class=dtop><a class=back href="/all"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 2px;"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>返回</a>{_save_btn(o)}</div>
@@ -986,13 +998,15 @@ async function argoAsk(){{
  const q=document.getElementById('cq'),b=document.getElementById('cbtn'),log=document.getElementById('clog');
  const t=q.value.trim(); if(!t)return; b.disabled=true; b.textContent='思考中…';
  log.innerHTML+='<div class=cu>'+t.replace(/[<>&]/g,'')+'</div>'; q.value='';
+ const sk=document.createElement('div');sk.className='ca loading';sk.innerHTML='&nbsp;';log.appendChild(sk);log.scrollTop=log.scrollHeight;
  try{{
   const r=await fetch('/api/chat',{{method:'POST',headers:{{'Content-Type':'application/json'}},
    body:JSON.stringify({{text:t,item_id:ARGO_ID}})}});
   const d=await r.json();
-  if(d.reply){{log.innerHTML+='<div class=ca>'+d.reply.replace(/[<>&]/g,m=>({{'<':'&lt;','>':'&gt;','&':'&amp;'}}[m]))+'</div>';}}
-  else{{log.innerHTML+='<div class=ca>出错了：'+(d.error||'未知')+'</div>';}}
- }}catch(e){{log.innerHTML+='<div class=ca>网络错误</div>';}}
+  sk.classList.remove('loading');
+  if(d.reply){{sk.innerHTML=d.reply.replace(/[<>&]/g,m=>({{'<':'&lt;','>':'&gt;','&':'&amp;'}}[m]));}}
+  else{{sk.innerHTML='出错了：'+(d.error||'未知');}}
+ }}catch(e){{sk.classList.remove('loading');sk.innerHTML='网络错误';}}
  b.disabled=false; b.textContent='追问'; log.scrollTop=log.scrollHeight;
 }}
 </script>"""
@@ -1015,7 +1029,7 @@ def _daily() -> str:
     days = store.load_days()
     head = '<h1 class=ttl>AI 日报</h1><p class=sub>当日机会精简清单，适合通读</p><div class=hr></div>'
     if not days:
-        return _page("金羊毛 Argo · 日报", head + '<p class=empty>还没有日报。</p>', "/daily")
+        return _page("金羊毛 Argo · 日报", head + '<div class=empty><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><b>今天还没出日报</b>流水线跑完后会自动生成</div>', "/daily")
     day, all_opps = days[0]
     rows = "".join(
         f'<div class=dailyrow><span class=dnum>{i+1}</span>'
@@ -1125,7 +1139,7 @@ def _saved_page() -> str:
     opps = [o for o in (store.get(i) for i in saved.list_ids(u["id"])) if o]
     head = '<h1 class=ttl>我的收藏</h1><div class=hr></div>'
     if not opps:
-        body = head + '<p class=empty>还没收藏。在机会详情页点「收藏」存下值得做的方向。</p>'
+        body = head + '<div class=empty><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg><b>还没收藏</b>在机会详情页点「收藏」存下值得做的方向</div>'
     else:
         body = head + _feed(opps)
     return _page("金羊毛 Argo · 收藏", body, "/saved")
@@ -1339,7 +1353,7 @@ def route(method: str, raw_path: str, body: bytes, headers: dict) -> tuple[int, 
         return 200, J, json.dumps({"reply": reply}, ensure_ascii=False)
     if method == "GET" and not path.startswith("/api/"):
         return 404, H, _page("金羊毛 Argo · 404",
-                             '<p class=empty>这里什么都没有。<br><a class=back href="/">回首页</a></p>', "")
+                             '<div class=empty><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg><b>这里什么都没有</b><a href="/">回首页</a></div>', "")
     return 404, J, json.dumps({"error": "no such route"})
 
 
