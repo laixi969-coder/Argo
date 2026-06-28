@@ -291,7 +291,8 @@ def _session_del(token):
 
 def _get_session(headers):
     """从请求头取 admin session。"""
-    cookie = SimpleCookie(headers.get("Cookie", "") if isinstance(headers, dict) else headers.get("cookie", ""))
+    raw_cookie = headers.get("Cookie") or headers.get("cookie") or ""
+    cookie = SimpleCookie(raw_cookie)
     token = cookie.get("argo_session")
     if not token:
         return None
