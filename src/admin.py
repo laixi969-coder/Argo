@@ -265,15 +265,39 @@ def _parse_body(raw_bytes, content_type=""):
     return {key: values[-1] for key, values in parse_qs(raw).items()}
 
 
+def _session_put(token, data):
+    """生产(Vercel)无状态：会话存 KV 跨实例共享；本地存内存。"""
+    if kv.enabled():
+        kv.set_json(f"adminsess:{token}", data, ex=SESSION_TTL)
+    else:
+        SESSIONS[token] = data
+
+
+def _session_get(token):
+    if kv.enabled():
+        return kv.get_json(f"adminsess:{token}")
+    return SESSIONS.get(token)
+
+
+def _session_del(token):
+    if kv.enabled():
+        try:
+            kv.delete(f"adminsess:{token}")
+        except Exception:
+            pass
+    else:
+        SESSIONS.pop(token, None)
+
+
 def _get_session(headers):
     """从请求头取 admin session。"""
     cookie = SimpleCookie(headers.get("Cookie", "") if isinstance(headers, dict) else headers.get("cookie", ""))
     token = cookie.get("argo_session")
     if not token:
         return None
-    session = SESSIONS.get(token.value)
+    session = _session_get(token.value)
     if not session or session["expires"] < time.time():
-        SESSIONS.pop(token.value, None)
+        _session_del(token.value)
         return None
     return session
 
@@ -325,7 +349,7 @@ def handle_request(method, path, body=b"", headers=None):
                 time.sleep(0.5)
                 return _json_resp({"ok": False, "error": "邮箱或密码错误"}, 401)
             token, csrf = secrets.token_urlsafe(32), secrets.token_urlsafe(24)
-            SESSIONS[token] = {"csrf": csrf, "expires": time.time() + SESSION_TTL}
+            _session_put(token, {"csrf": csrf, "expires": time.time() + SESSION_TTL})
             return _json_resp(
                 {"ok": True, "csrf": csrf},
                 headers={"Set-Cookie": f"argo_session={token}; HttpOnly; SameSite=Strict; Path=/; Max-Age={SESSION_TTL}"},
