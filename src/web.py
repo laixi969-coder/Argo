@@ -570,8 +570,8 @@ def _cat_tag(o: dict) -> str:
 
 def _is_super_admin() -> bool:
     u = _req_user.get()
-    admin_email = config.get("ARGO_ADMIN_EMAIL")
-    return bool(u and admin_email and u["email"] == admin_email)
+    admin_email = (config.get("ARGO_ADMIN_EMAIL") or "").strip().lower()
+    return bool(u and admin_email and u["email"].strip().lower() == admin_email)
 
 
 def _sidebar(active: str) -> str:
@@ -1236,7 +1236,7 @@ def route(method: str, raw_path: str, body: bytes, headers: dict) -> tuple[int, 
         return 200, H, _admin()
     if method == "POST" and path == "/admin/setplan":
         u = _req_user.get()
-        if not u or u["email"] != config.get("ARGO_ADMIN_EMAIL"):
+        if not u or u["email"].strip().lower() != (config.get("ARGO_ADMIN_EMAIL") or "").strip().lower():
             return 403, J, json.dumps({"error": "无权限"}, ensure_ascii=False)
         try:
             d = json.loads(body or b"{}")

@@ -295,7 +295,7 @@ def handle_request(method, path, body=b"", headers=None):
 
         if path == "/api/login":
             values = _read_values()
-            email_ok = secrets.compare_digest(str(payload.get("email", "")), values.get("ADMIN_EMAIL", ""))
+            email_ok = secrets.compare_digest(str(payload.get("email", "")).strip().lower(), values.get("ADMIN_EMAIL", "").strip().lower())
             password_ok = verify_password(str(payload.get("password", "")), values.get("ADMIN_PASSWORD_HASH", ""))
             if not email_ok or not password_ok:
                 time.sleep(0.5)
