@@ -1,0 +1,25 @@
+name: Argo 每日机会流水线
+
+# 每天 07:00（北京时间）跑一次，把最新机会写进 KV，Vercel 站点读 KV 自动更新。
+# 也支持在 GitHub Actions 页面手动点 "Run workflow" 立即跑一次。
+on:
+  schedule:
+    - cron: "0 23 * * *"   # 23:00 UTC = 次日 07:00 Asia/Shanghai
+  workflow_dispatch: {}
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: 安装依赖
+        run: pip install -r requirements.txt
+      - name: 跑流水线（数据源 key、LLM 配置都从 KV 读取）
+        env:
+          KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
+          KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
+        run: python -m src.main
