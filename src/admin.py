@@ -12,6 +12,7 @@ from urllib.parse import parse_qs, urlsplit
 
 import requests
 
+from src import config, kv
 from src.settings import (
     ENV_PATH,
     _read_values,
@@ -63,8 +64,19 @@ def safe_settings(values):
     return result
 
 
-def merged_settings(payload, path=ENV_PATH):
+def _effective_values(path=ENV_PATH):
+    """本地/测试读 .env；生产(Vercel)无 .env，叠加环境变量 + KV 覆盖。"""
     values = _read_values(path)
+    if kv.enabled():
+        for key in ALL_FIELDS:
+            v = config.get(key)
+            if v:
+                values[key] = v
+    return values
+
+
+def merged_settings(payload, path=ENV_PATH):
+    values = _effective_values(path)
     for key in PUBLIC_FIELDS:
         if key in payload:
             values[key] = str(payload[key]).strip()
@@ -80,6 +92,16 @@ def save_settings(payload, path=ENV_PATH):
         value = str(payload.get(key, ""))
         if "\n" in value or "\r" in value:
             raise ValueError(f"{key} 不能包含换行")
+    if kv.enabled():
+        # 生产(Vercel)：写入 KV 覆盖，线上 config.get 实时读取
+        for key in PUBLIC_FIELDS:
+            if key in payload:
+                config.set_override(key, str(payload[key]).strip())
+        for key in SECRET_FIELDS:
+            value = str(payload.get(key, "")).strip()
+            if value:
+                config.set_override(key, value)
+        return
     for key in PUBLIC_FIELDS:
         if key in payload:
             _replace_value(key, str(payload[key]).strip(), path)
@@ -284,7 +306,7 @@ def handle_request(method, path, body=b"", headers=None):
             session = _get_session(headers)
             if not session:
                 return _json_resp({"ok": False, "error": "请先登录"}, 401)
-            return _json_resp({"ok": True, "settings": safe_settings(_read_values())})
+            return _json_resp({"ok": True, "settings": safe_settings(_effective_values())})
         return _json_resp({"error": "not found"}, 404)
 
     if method == "POST":
@@ -294,9 +316,11 @@ def handle_request(method, path, body=b"", headers=None):
             return _json_resp({"ok": False, "error": str(exc)}, 400)
 
         if path == "/api/login":
-            values = _read_values()
-            email_ok = secrets.compare_digest(str(payload.get("email", "")).strip().lower(), values.get("ADMIN_EMAIL", "").strip().lower())
-            password_ok = verify_password(str(payload.get("password", "")), values.get("ADMIN_PASSWORD_HASH", ""))
+            # 线上(Vercel)无 .env 文件，凭据来自环境变量 + KV；本地 .env 经 config 加载
+            admin_email = (config.get("ADMIN_EMAIL") or "").strip().lower()
+            admin_hash = config.get("ADMIN_PASSWORD_HASH") or ""
+            email_ok = secrets.compare_digest(str(payload.get("email", "")).strip().lower(), admin_email)
+            password_ok = verify_password(str(payload.get("password", "")), admin_hash)
             if not email_ok or not password_ok:
                 time.sleep(0.5)
                 return _json_resp({"ok": False, "error": "邮箱或密码错误"}, 401)
