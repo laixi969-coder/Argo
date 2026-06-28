@@ -2,13 +2,13 @@ import json
 import os
 from pathlib import Path
 
-from src.sources import producthunt, reddit, reddit_tikhub, tikhub
+from src.sources import producthunt, reddit_tikhub, tikhub, twitter_tikhub
 from src import config, dedup, email_report, extract, prefilter, rank, score, store, telegram_report
 
 
 SOURCES = {
-    "reddit": reddit.fetch,
     "reddit_tikhub": reddit_tikhub.fetch,
+    "twitter_tikhub": twitter_tikhub.fetch,
     "producthunt": producthunt.fetch,
     "tikhub": tikhub.fetch,
 }
