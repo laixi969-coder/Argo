@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 import time
 from pathlib import Path
+from src import kv
 
 QUOTA_DIR = Path(__file__).resolve().parent.parent / "data" / "quota"
 
@@ -60,6 +61,9 @@ def use_chat(user: dict | None) -> bool:
         return False
     if chat_remaining(user) <= 0:
         return False
+    if kv.enabled():
+        kv.set_json(_quota_key(user["id"]), {"chat": _used(user["id"]) + 1}, ex=172800)
+        return True
     p = _quota_path(user["id"])
     QUOTA_DIR.mkdir(parents=True, exist_ok=True)
     p.write_text(json.dumps({"chat": _used(user["id"]) + 1}))
@@ -67,6 +71,8 @@ def use_chat(user: dict | None) -> bool:
 
 
 def _used(uid: str) -> int:
+    if kv.enabled():
+        return int((kv.get_json(_quota_key(uid)) or {}).get("chat", 0))
     p = _quota_path(uid)
     if not p.exists():
         return 0
@@ -74,3 +80,7 @@ def _used(uid: str) -> int:
         return int(json.loads(p.read_text()).get("chat", 0))
     except Exception:
         return 0
+
+
+def _quota_key(uid: str) -> str:
+    return f"quota:{uid}:{time.strftime('%Y%m%d')}"

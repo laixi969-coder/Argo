@@ -10,6 +10,7 @@ import os
 import secrets
 import time
 from pathlib import Path
+from src import kv
 
 USERS = Path(__file__).resolve().parent.parent / "data" / "users"
 _ITER = 200_000
@@ -28,6 +29,8 @@ def _path(uid: str) -> Path:
 
 
 def get(uid: str) -> dict | None:
+    if kv.enabled():
+        return kv.get_json(f"user:{uid}")
     p = _path(uid)
     if not p.exists():
         return None
@@ -49,13 +52,18 @@ def create(email: str, password: str, plan: str = "free") -> dict:
     if not (8 <= len(password or "") <= 128):
         raise ValueError("密码需 8-128 位")
     uid = _uid(email)
-    if _path(uid).exists():
+    if get(uid):
         raise ValueError("该邮箱已注册")
     salt = secrets.token_hex(16)
     user = {"id": uid, "email": email, "salt": salt, "pw": _hash(password, salt),
             "plan": plan, "created": int(time.time())}
-    USERS.mkdir(parents=True, exist_ok=True)
-    _write(uid, user)
+    if kv.enabled():
+        if not kv.set_json(f"user:{uid}", user, nx=True):
+            raise ValueError("该邮箱已注册")
+        kv.sadd("users", uid)
+    else:
+        USERS.mkdir(parents=True, exist_ok=True)
+        _write(uid, user)
     return _public(user)
 
 
@@ -91,6 +99,11 @@ def set_plan(uid: str, plan: str) -> dict | None:
 
 
 def delete(uid: str) -> bool:
+    if kv.enabled():
+        existed = get(uid) is not None
+        kv.delete(f"user:{uid}")
+        kv.srem("users", uid)
+        return existed
     p = _path(uid)
     if p.exists():
         p.unlink()
@@ -99,11 +112,17 @@ def delete(uid: str) -> bool:
 
 
 def count() -> int:
+    if kv.enabled():
+        return len(kv.smembers("users"))
     return len(list(USERS.glob("*.json"))) if USERS.exists() else 0
 
 
 def all_users() -> list[dict]:
     """运营视角：全部用户（脱敏），按注册时间倒序。"""
+    if kv.enabled():
+        out = [get(uid) for uid in kv.smembers("users")]
+        return sorted((_public(u) for u in out if u),
+                      key=lambda u: u.get("created", 0), reverse=True)
     if not USERS.exists():
         return []
     out = []
@@ -122,6 +141,10 @@ def _public(u: dict) -> dict:
 
 
 def _write(uid: str, user: dict) -> None:
+    if kv.enabled():
+        kv.set_json(f"user:{uid}", user)
+        kv.sadd("users", uid)
+        return
     p = _path(uid)
     tmp = p.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(user, ensure_ascii=False))

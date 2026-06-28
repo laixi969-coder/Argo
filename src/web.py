@@ -19,7 +19,7 @@ import urllib.parse
 from datetime import date
 from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from src import config, agent, telegram, store, auth, users, plans, billing, saved, mailer, admin
+from src import config, agent, telegram, store, auth, users, plans, billing, saved, mailer, admin, kv
 
 STATIC = Path(__file__).resolve().parent.parent / "static"
 _req_user: contextvars.ContextVar = contextvars.ContextVar("req_user", default=None)
@@ -1367,6 +1367,12 @@ def auth_action(method: str, path: str, body: bytes = b"", hdrs: dict | None = N
     path = path.split("?")[0]
     _req_user.set(auth.current_user(hdrs.get("cookie", "")))
     form = {k: v[0] for k, v in urllib.parse.parse_qs(body.decode("utf-8", "ignore")).items()}
+
+    if method == "POST" and path in ("/signup", "/login"):
+        missing = kv.cloud_missing()
+        if missing:
+            msg = "云端账号存储尚未配置，请联系管理员（缺少：" + ", ".join(missing) + "）"
+            return 503, [], _auth_page(path[1:], msg)
 
     if method == "POST" and path == "/signup":
         try:

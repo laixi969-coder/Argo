@@ -1,6 +1,7 @@
 import json
 import os
 from pathlib import Path
+from src import kv
 
 _ROOT = Path(__file__).resolve().parent.parent
 OVERRIDES = _ROOT / "data" / "config.json"
@@ -25,6 +26,8 @@ def get(key, default=None):
 
 
 def _overrides():
+    if kv.enabled():
+        return kv.get_json("config") or {}
     if not OVERRIDES.exists():
         return {}
     try:
@@ -36,5 +39,8 @@ def _overrides():
 def set_override(key, value):
     overrides = _overrides()
     overrides[key] = value
+    if kv.enabled():
+        kv.set_json("config", overrides)
+        return
     OVERRIDES.parent.mkdir(parents=True, exist_ok=True)
     OVERRIDES.write_text(json.dumps(overrides, ensure_ascii=False), encoding="utf-8")

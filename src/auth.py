@@ -9,7 +9,7 @@ import hashlib
 import os
 from http.cookies import SimpleCookie
 from pathlib import Path
-from src import config, users
+from src import config, users, kv
 
 COOKIE = "argo_session"
 _SECRET_FILE = Path(__file__).resolve().parent.parent / "data" / ".secret"
@@ -25,6 +25,9 @@ def _tpath(email: str) -> Path:
 def login_blocked(email: str) -> bool:
     import json
     import time
+    if kv.enabled():
+        d = kv.get_json(f"throttle:{_thash(email)}") or {}
+        return d.get("fails", 0) >= _MAX_FAILS and time.time() < d.get("until", 0)
     p = _tpath(email)
     if not p.exists():
         return False
@@ -38,6 +41,12 @@ def login_blocked(email: str) -> bool:
 def note_fail(email: str) -> None:
     import json
     import time
+    if kv.enabled():
+        key = f"throttle:{_thash(email)}"
+        current = kv.get_json(key) or {}
+        fails = int(current.get("fails", 0)) + 1
+        kv.set_json(key, {"fails": fails, "until": int(time.time()) + _WINDOW}, ex=_WINDOW)
+        return
     p = _tpath(email)
     fails = 0
     if p.exists():
@@ -51,6 +60,9 @@ def note_fail(email: str) -> None:
 
 
 def note_ok(email: str) -> None:
+    if kv.enabled():
+        kv.delete(f"throttle:{_thash(email)}")
+        return
     p = _tpath(email)
     if p.exists():
         p.unlink()
@@ -60,6 +72,8 @@ def _secret() -> bytes:
     s = config.get("ARGO_SECRET")
     if s:
         return s.encode()
+    if os.environ.get("VERCEL"):
+        raise RuntimeError("Vercel 必须配置 ARGO_SECRET")
     if _SECRET_FILE.exists():
         return _SECRET_FILE.read_bytes()
     _SECRET_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -67,6 +81,10 @@ def _secret() -> bytes:
     _SECRET_FILE.write_bytes(val)
     os.chmod(_SECRET_FILE, 0o600)
     return val
+
+
+def _thash(email: str) -> str:
+    return hashlib.sha256(email.strip().lower().encode()).hexdigest()[:16]
 
 
 def _sign(uid: str) -> str:

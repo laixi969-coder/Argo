@@ -106,5 +106,6 @@ def _static(name, start_response):
 
 def _status_line(code: int) -> str:
     phrases = {200: "OK", 303: "See Other", 400: "Bad Request",
-               401: "Unauthorized", 403: "Forbidden", 404: "Not Found"}
+               401: "Unauthorized", 403: "Forbidden", 404: "Not Found",
+               503: "Service Unavailable"}
     return f"{code} {phrases.get(code, 'Unknown')}"

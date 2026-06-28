@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+from src import kv
 
 SAVED = Path(__file__).resolve().parent.parent / "data" / "saved"
 
@@ -12,6 +13,8 @@ def _path(uid: str) -> Path:
 
 
 def list_ids(uid: str) -> list[str]:
+    if kv.enabled():
+        return kv.get_json(f"saved:{uid}") or []
     p = _path(uid)
     if not p.exists():
         return []
@@ -22,6 +25,9 @@ def list_ids(uid: str) -> list[str]:
 
 
 def purge(uid: str) -> None:
+    if kv.enabled():
+        kv.delete(f"saved:{uid}")
+        return
     p = _path(uid)
     if p.exists():
         p.unlink()
@@ -39,6 +45,9 @@ def toggle(uid: str, item_id: str) -> bool:
         ids.insert(0, item_id)
     else:
         ids.remove(item_id)
+    if kv.enabled():
+        kv.set_json(f"saved:{uid}", ids)
+        return saved
     SAVED.mkdir(parents=True, exist_ok=True)
     p = _path(uid)
     tmp = p.with_suffix(".json.tmp")
