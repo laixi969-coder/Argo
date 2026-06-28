@@ -4,6 +4,8 @@
 走 TikHub 的 twitter/web/fetch_search_timeline 接口。返回字段与其它源统一：
 {source, title, raw_text, url, signal}。
 """
+import time
+
 import requests
 
 from src import config
@@ -60,20 +62,19 @@ def _extract_tweets(body: dict) -> list[dict]:
 
 
 def _search(keyword: str, count: int = _PER_KEYWORD) -> list[dict]:
-    r = requests.get(
-        f"{_base()}{_ENDPOINT}",
-        headers=_headers(),
-        params={"keyword": keyword, "search_type": "Top"},
-        timeout=40,
+    # 加引号强制精确短语匹配：否则多词需求短语会被拆成单词松散匹配，捞回无关爆款
+    params = {"keyword": f'"{keyword}"', "search_type": "Latest"}
+    last = None
+    for attempt in range(3):  # TikHub 连续请求易瞬时 400/限流，退避重试
+        r = requests.get(f"{_base()}{_ENDPOINT}", headers=_headers(), params=params, timeout=40)
+        if r.status_code == 200 and r.json().get("code") == 200:
+            return _extract_tweets(r.json())[:count]
+        last = r
+        time.sleep(1.5 * (attempt + 1))
+    raise RuntimeError(
+        f"TikHub Twitter 搜索失败({keyword!r}): HTTP {last.status_code} "
+        + (last.text[:160] if last is not None else "")
     )
-    r.raise_for_status()
-    body = r.json()
-    if body.get("code") != 200:
-        raise RuntimeError(
-            f"TikHub Twitter 搜索失败({keyword!r}): "
-            + (body.get("message_zh") or body.get("message") or str(body)[:200])
-        )
-    return _extract_tweets(body)[:count]
 
 
 def fetch() -> list[dict]:
