@@ -28,7 +28,10 @@ def get(key, default=None):
 
 def _overrides():
     if kv.enabled():
-        return kv.get_json("config") or {}
+        try:
+            return kv.get_json("config") or {}
+        except Exception:
+            return {}  # KV 瞬时抽风时回退环境变量，不让整条流程崩
     if not OVERRIDES.exists():
         return {}
     try:
