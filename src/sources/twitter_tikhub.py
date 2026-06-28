@@ -66,7 +66,7 @@ def _search(keyword: str, count: int = _PER_KEYWORD) -> list[dict]:
     params = {"keyword": f'"{keyword}"', "search_type": "Latest"}
     last = None
     for attempt in range(2):  # TikHub 偶发 400/限流，轻量重试一次即可
-        r = requests.get(f"{_base()}{_ENDPOINT}", headers=_headers(), params=params, timeout=40)
+        r = requests.get(f"{_base()}{_ENDPOINT}", headers=_headers(), params=params, timeout=20)
         if r.status_code == 200 and r.json().get("code") == 200:
             return _extract_tweets(r.json())[:count]
         last = r

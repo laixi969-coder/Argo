@@ -86,7 +86,7 @@ def _search(keyword: str, count: int = _PER_KEYWORD) -> list[dict]:
             "time_range": "year",
             "need_format": "true",
         },
-        timeout=40,
+        timeout=20,
     )
     r.raise_for_status()
     body = r.json()
