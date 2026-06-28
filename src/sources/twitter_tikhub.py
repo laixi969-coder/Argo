@@ -65,12 +65,13 @@ def _search(keyword: str, count: int = _PER_KEYWORD) -> list[dict]:
     # 加引号强制精确短语匹配：否则多词需求短语会被拆成单词松散匹配，捞回无关爆款
     params = {"keyword": f'"{keyword}"', "search_type": "Latest"}
     last = None
-    for attempt in range(3):  # TikHub 连续请求易瞬时 400/限流，退避重试
+    for attempt in range(2):  # TikHub 偶发 400/限流，轻量重试一次即可
         r = requests.get(f"{_base()}{_ENDPOINT}", headers=_headers(), params=params, timeout=40)
         if r.status_code == 200 and r.json().get("code") == 200:
             return _extract_tweets(r.json())[:count]
         last = r
-        time.sleep(1.5 * (attempt + 1))
+        if attempt == 0:
+            time.sleep(1.2)
     raise RuntimeError(
         f"TikHub Twitter 搜索失败({keyword!r}): HTTP {last.status_code} "
         + (last.text[:160] if last is not None else "")
@@ -83,6 +84,7 @@ def fetch() -> list[dict]:
 
     out, seen = [], set()
     for kw in KEYWORDS:
+        time.sleep(0.4)  # 关键词间轻节流，从源头降低 TikHub 限流(400)
         try:
             tweets = _search(kw)
         except Exception as exc:  # 单关键词失败不拖垮整源

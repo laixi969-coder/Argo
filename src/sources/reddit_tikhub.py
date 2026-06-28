@@ -4,6 +4,8 @@
 走 TikHub 的 reddit/app/fetch_dynamic_search 接口。返回字段与其它源统一：
 {source, title, raw_text, url, signal}。
 """
+import time
+
 import requests
 
 from src import config
@@ -102,6 +104,7 @@ def fetch() -> list[dict]:
 
     out, seen = [], set()
     for kw in KEYWORDS:
+        time.sleep(0.4)  # 关键词间轻节流，从源头降低 TikHub 限流(400)
         try:
             posts = _search(kw)
         except Exception as exc:  # 单关键词失败不拖垮整源
