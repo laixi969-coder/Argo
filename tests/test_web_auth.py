@@ -90,7 +90,7 @@ def test_app_route_shows_feed():
     store.append([{"idea": "x", "verdict": "值得做", "score": 80, "reason": "r",
                    "url": "http://x", "source": "s", "category": "AI应用"}], day=date.today().isoformat())
     _, _, body = web.route("GET", "/app", b"", {})
-    assert "今日热点" in body and "精选" in body  # /app 永远是机会流
+    assert "机会分" in body and "精选" in body  # /app 永远是机会流
 
 
 def test_web_chat_requires_login():

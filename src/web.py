@@ -31,24 +31,24 @@ aesc = telegram.attr  # 属性安全转义（href/src/value）
 
 _CSS = """
 :root{
-  --bg:#eef5f2;
-  --ink:#081a17;
-  --soft:#3f4e4a;
-  --gold:#005d53;
-  --goldbright:#0d9488;
-  --navy:#005d53;
-  --card:#ffffff;
-  --muted:#7a8c87;
-  --line:#cbdcd6;
-  --rec:#e8f0ed;
-  --recink:#2c3a36;
-  --amber:#e6f2ee;
-  --green-bg:#d1fae5;
-  --green-text:#065f46;
-  --red-bg:#fee2e2;
-  --red-text:#991b1b;
-  --amber-bg:#fef3c7;
-  --amber-text:#92400e;
+  --bg:#34241a;
+  --ink:#f9f1e3;
+  --soft:#dac9a4;
+  --gold:#ebb85e;
+  --goldbright:#f8d27e;
+  --navy:#dcb265;
+  --card:#46341f;
+  --muted:#b6a37c;
+  --line:#604a2f;
+  --rec:#43311b;
+  --recink:#f9f1e3;
+  --amber:#564222;
+  --green-bg:#13301f;
+  --green-text:#5fd39a;
+  --red-bg:#3a1614;
+  --red-text:#f0837a;
+  --amber-bg:#3a2a0e;
+  --amber-text:#f2c264;
   --font-sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"SF Pro SC","PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
   --font-mono:ui-monospace,SFMono-Regular,SF Mono,Menlo,Consolas,Liberation Mono,monospace;
   --transition:all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
@@ -59,10 +59,21 @@ body{
   font:15px/1.65 var(--font-sans);
   margin:0;
   color:var(--ink);
-  background:var(--bg);
+  background:
+    radial-gradient(900px 620px at 74% 16%, rgba(245,205,120,.18), transparent 58%),
+    radial-gradient(1100px 780px at 22% 8%, rgba(220,150,65,.14), transparent 55%),
+    radial-gradient(1600px 1200px at 50% 2%, #634326 0%, #4a3420 44%, #34241a 100%);
+  background-attachment:fixed;
   -webkit-font-smoothing:antialiased;
   letter-spacing:-0.1px;
   transition:background 0.3s ease, color 0.3s ease;
+}
+html[data-theme=light] body{
+  background:
+    radial-gradient(1000px 680px at 78% 8%, rgba(181,120,31,.10), transparent 58%),
+    radial-gradient(1200px 900px at 12% 100%, rgba(138,106,30,.07), transparent 55%),
+    var(--bg);
+  background-attachment:fixed;
 }
 .layout{display:flex;max-width:1440px;margin:0 auto;align-items:flex-start;padding:0 40px}
 .side{
@@ -79,8 +90,9 @@ body{
 }
 .main{flex:1;min-width:0;padding:32px 40px 80px;max-width:960px}
 .logo{overflow:hidden;display:flex;align-items:center;justify-content:flex-start;padding-left:4px;margin-bottom:12px}
-.lg{height:40px;width:auto;display:block}.lg-dark{display:none}
-html[data-theme=dark] .lg-light{display:none}html[data-theme=dark] .lg-dark{display:block}
+.lg{height:40px;width:auto;display:block}.lg-light{display:none}.lg-dark{display:block}
+html[data-theme=light] .lg-light{display:block}html[data-theme=light] .lg-dark{display:none}
+.logo .lg{height:120px;margin:-34px -10px}
 a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-offset:2px;border-radius:2px}
 .grp{font-size:10.5px;letter-spacing:2px;color:var(--muted);margin:24px 0 8px;padding-left:10px;text-transform:uppercase;font-weight:700}
 .snav{display:flex;flex-direction:column;gap:4px}
@@ -98,6 +110,7 @@ a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(-
 .snav a.on{background:var(--amber);color:var(--gold);font-weight:700;border-left:none;border-radius:4px;padding-left:14px}
 h1.ttl{font-size:26px;font-weight:800;letter-spacing:-0.5px;margin:0;font-family:var(--font-sans)}
 .sub{color:var(--muted);margin:6px 0 0;font-size:13.5px;font-weight:600}
+.legend{color:var(--muted);margin:10px 0 0;font-size:12.5px;font-weight:600;line-height:1.5}
 .hr{height:1px;background:var(--line);margin:24px 0}
 .toolbar{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:12px}
 .tabs{display:flex;gap:8px;flex-wrap:wrap}
@@ -112,8 +125,8 @@ h1.ttl{font-size:26px;font-weight:800;letter-spacing:-0.5px;margin:0;font-family
   font-weight:600;
   border:1px solid var(--line);
 }
-.tabs a:hover{background:#cbd5e1;color:var(--ink)}
-.tabs a.on{background:var(--ink);color:#fff;font-weight:700;border-color:var(--ink)}
+.tabs a:hover{background:rgba(227,169,72,.14);color:var(--gold)}
+.tabs a.on{background:var(--gold);color:#1a1108;font-weight:700;border-color:var(--gold)}
 .search{display:flex;gap:8px}
 .search input{
   border:1px solid var(--line);
@@ -140,29 +153,17 @@ h1.ttl{font-size:26px;font-weight:800;letter-spacing:-0.5px;margin:0;font-family
   transition:var(--transition);
 }
 .search button:hover{background:var(--goldbright)}
-.hot{
-  background:var(--card);
-  border:1px solid var(--line);
-  border-radius:4px;
-  padding:20px 24px;
-  margin:24px 0 12px;
-  box-shadow:none;
-  transition:var(--transition);
-}
-.hothead{display:flex;justify-content:space-between;align-items:baseline;font-size:13.5px;font-weight:750;color:var(--ink);margin-bottom:14px;font-family:var(--font-sans)}
-.hothead .m{color:var(--muted);font-size:11.5px;font-weight:600}
-.hot ol{margin:0;padding:0;list-style:none}
-.hot li{display:flex;gap:14px;align-items:baseline;padding:10px 0;border-top:1px solid var(--line);transition:border-color 0.3s ease}
-.hot li:first-child{border-top:none;padding-top:2px}
-.hot .rk{color:var(--gold);font-weight:800;width:18px;font-size:13.5px}
-.hot .nm{flex:1;font-weight:700}.hot .mm{color:var(--muted);font-size:12px}
 .daygrp{display:flex;align-items:center;gap:8px;margin:36px 0 16px;font-size:12.5px;color:var(--muted);font-weight:700;letter-spacing:0.5px;text-transform:uppercase}
 .daygrp:first-of-type{margin-top:24px}
 .row{display:flex;gap:0}
 .rail{width:66px;flex-shrink:0;text-align:right;padding-right:18px;position:relative}
 .rail .rk{font-weight:800;color:var(--gold);font-size:19px;line-height:1}
-.rail .sub{display:block;font-size:10.5px;color:var(--muted);margin-top:2px;font-weight:700}
-.rail .dot{position:absolute;right:-5px;top:9px;width:9px;height:9px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 3px var(--bg);transition:var(--transition)}
+.rail .rk .u{font-size:11px;font-weight:700;margin-left:1px}
+.rail .sub{display:block;font-size:10.5px;color:var(--muted);margin-top:3px;font-weight:700;letter-spacing:0.5px}
+.rail .dot{position:absolute;right:-5px;top:9px;width:9px;height:9px;border-radius:50%;background:var(--line);box-shadow:0 0 0 3px var(--bg);transition:var(--transition)}
+.row.podium .rail .rk{font-size:23px}
+.row.podium .rail .sub{color:var(--gold)}
+.row.podium .rail .dot{width:12px;height:12px;top:8px;right:-6px;background:var(--gold)}
 .rail:before{content:"";position:absolute;right:-1px;top:8px;bottom:-22px;width:2px;background:var(--line);transition:var(--transition)}
 article{
   flex:1;
@@ -447,7 +448,6 @@ pre{background:#12141c;color:#e2e8f0;padding:16px;border-radius:4px;overflow:aut
   text-align:center;
 }
 .gate .cta{margin-left:12px;vertical-align:middle}
-html[data-theme=dark] .gate{background:#2e1610}
 .pricing{display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:680px}
 .pcard{
   border:1px solid var(--line);
@@ -487,31 +487,26 @@ html[data-theme=dark] .gate{background:#2e1610}
 .summary,.ana .txt{max-width:74ch}
 .tabs a:active,.snav a:active,.pager a:active,.read:active,.search button:active,.themebtn:active,.back:active{transform:translateY(1px)}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;scroll-behavior:auto!important}article:hover,.pcard:hover{transform:none}}
-html[data-theme=dark]{
-  --bg:#08120e;
-  --ink:#f0f7f4;
-  --soft:#91a79f;
-  --gold:#0d9488;
-  --goldbright:#2dd4bf;
-  --navy:#0d9488;
-  --card:#111f18;
-  --muted:#5c7069;
-  --line:#1e3027;
-  --rec:#17261f;
-  --recink:#f0f7f4;
-  --amber:#132c21;
-  --green-bg:#0b2b1f;
-  --green-text:#0d9488;
-  --red-bg:#2d1212;
-  --red-text:#ef4444;
-  --amber-bg:#2b1d0e;
-  --amber-text:#f59e0b;
+html[data-theme=light]{
+  --bg:#f4efe3;
+  --ink:#2a2014;
+  --soft:#5c4f3c;
+  --gold:#b5781f;
+  --goldbright:#cf962f;
+  --navy:#8a6a1e;
+  --card:#fffdf7;
+  --muted:#897c63;
+  --line:#e3d9c5;
+  --rec:#efe8d8;
+  --recink:#2a2014;
+  --amber:#f3e9d2;
+  --green-bg:#d8f0e0;
+  --green-text:#1f6b46;
+  --red-bg:#f6dedb;
+  --red-text:#9a3327;
+  --amber-bg:#f6eccf;
+  --amber-text:#876012;
 }
-html[data-theme=dark] .excerpt,html[data-theme=dark] .raw[open]{background:#17261f;color:#cbd5e1;border-color:var(--line)}
-html[data-theme=dark] .tabs a,html[data-theme=dark] .tag,html[data-theme=dark] code{background:#17261f}
-html[data-theme=dark] .snav a:hover{background:#17261f}
-html[data-theme=dark] .rec{border-color:var(--line)}
-html[data-theme=dark] .gate{background:#132c21}
 @media(max-width:768px){
   .layout{flex-direction:column;padding:0 20px}
   .side{width:auto;height:auto;position:static;border-right:none;border-bottom:1px solid var(--line);padding:20px 0}
@@ -563,6 +558,14 @@ def _hook(o: dict, n: int = 96) -> str:
 
 def _vclass(v: str) -> str:
     return {"伪机会": "tag vf", "待验证": "tag vw"}.get(v, "tag v")
+
+
+def _cat_tag(o: dict) -> str:
+    """分类标签：未设置或「未分类」就不渲染，避免每张卡都挂个无意义灰标签。"""
+    cat = (o.get("category") or "").strip()
+    if not cat or cat == "未分类":
+        return ""
+    return f'<span class=tag>{esc(cat)}</span>'
 
 
 def _is_super_admin() -> bool:
@@ -622,197 +625,134 @@ def _page(title: str, body: str, active: str, desc: str = "") -> str:
 <meta name=description content="{d}">
 <meta property="og:title" content="{esc(title)}"><meta property="og:description" content="{d}">
 <meta property="og:type" content="website"><meta property="og:image" content="/static/logo-on-light.png">
-<meta name="theme-color" content="#22304f">
+<meta name="theme-color" content="#160d05">
 <style>{_CSS}</style>
 <script>
-function argoTheme(){{var d=document.documentElement,n=d.getAttribute('data-theme')==='dark'?'':'dark';
+function argoTheme(){{var d=document.documentElement,n=d.getAttribute('data-theme')==='light'?'':'light';
 d.setAttribute('data-theme',n);localStorage.setItem('argo-theme',n)}}
-(function(){{if(localStorage.getItem('argo-theme')==='dark')document.documentElement.setAttribute('data-theme','dark')}})();
+(function(){{if(localStorage.getItem('argo-theme')==='light')document.documentElement.setAttribute('data-theme','light')}})();
 </script></head><body>
 <div class=layout>{_sidebar(active)}<div class=main>{body}</div></div></body></html>"""
 
 
-def _hot(opps: list[dict]) -> str:
-    t = sorted(opps, key=lambda o: o.get("score", 0), reverse=True)[:3]
-    if not t:
-        return ""
-    lis = "".join(
-        f'<li><span class=rk>{i+1}</span><span class=nm>{esc(o.get("idea",""))}</span>'
-        f'<span class=mm>{int(o.get("score",0))}分 · {esc(o.get("category","未分类"))}</span></li>'
-        for i, o in enumerate(t))
-    return f"""<div class=hot><div class=hothead><span>今日热点</span>
-<span class=m>按机会分排序</span></div><ol>{lis}</ol></div>"""
-
-
-def _card(o: dict, idx: int) -> str:
-    return f"""<div class=row><div class=rail><span class=rk>{int(o.get('score',0))}</span><span class=sub>精选</span><span class=dot></span></div>
+def _card(o: dict, rank: int) -> str:
+    podium = " podium" if rank <= 3 else ""
+    return f"""<div class="row{podium}"><div class=rail><span class=rk>{int(o.get('score',0))}<span class=u>分</span></span><span class=sub>满分100</span><span class=dot></span></div>
 <article>
 <div class=meta><span class=src>{esc(o.get('source',''))}</span>
 <span class="{_vclass(o.get('verdict',''))}">{esc(o.get('verdict',''))}</span>
-<span class=tag>{esc(o.get('category','未分类'))}</span></div>
+{_cat_tag(o)}</div>
 <h3><a href="/items/{aesc(o.get('id',''))}">{esc(o.get('idea',''))}</a></h3>
 <p class=summary>{esc(_hook(o))}</p>
 <div class=rec><b>推荐理由：</b>{esc(o.get('reason',''))}</div>
 </article></div>"""
 
 
-def _feed(opps: list[dict]) -> str:
-    return "".join(_card(o, i + 1) for i, o in enumerate(opps))
+def _feed(opps: list[dict], start: int = 1) -> str:
+    return "".join(_card(o, start + i) for i, o in enumerate(opps))
 
 
 _LAND_CSS = """
-/* ── Landing: full-bleed sections, no lwrap max-width on hero ── */
+/* ── Landing: Apple-style minimal, light, generous whitespace ── */
 .lnav{
+  position:absolute;top:0;left:0;right:0;z-index:5;
   display:flex;align-items:center;justify-content:space-between;
-  max-width:1120px;margin:0 auto;
-  padding:24px clamp(24px,5vw,64px);
+  max-width:1120px;margin:0 auto;padding:14px clamp(24px,5vw,44px);
 }
-.lnav .llogo{display:flex;align-items:center}
-.lnav .llogo .lg{height:36px;width:auto}
-.lnav .lr{display:flex;gap:20px;align-items:center;font-size:14px}
-.lnav .lr a{color:rgba(255,255,255,.7);text-decoration:none;font-weight:600;transition:var(--transition)}
+.lnav .lg{height:180px;width:auto;display:block;margin:-50px 0}
+.lnav .lr{display:flex;gap:30px;align-items:center;font-size:15px}
+.lnav .lr a{color:rgba(255,255,255,.88);text-decoration:none;font-weight:500;transition:var(--transition)}
 .lnav .lr a:hover{color:#fff}
-.lnav .lr a.s{background:#fff;color:var(--ink);padding:9px 20px;border-radius:6px;font-weight:700}
-.lnav .lr a.s:hover{background:rgba(255,255,255,.9)}
-/* ── Hero: dark immersive band ── */
-.hero-band{
-  background:var(--ink);
-  color:#f0f7f4;
-  position:relative;
-  overflow:hidden;
+.lnav .lr a.s{background:var(--gold);color:#fff;padding:10px 24px;border-radius:980px;font-weight:600}
+.lnav .lr a.s:hover{background:var(--goldbright)}
+/* ── Hero: cinematic video panel, light text ── */
+.lhero{
+  text-align:center;padding:clamp(96px,16vh,180px) clamp(24px,5vw,44px) clamp(64px,12vh,120px);
+  position:relative;overflow:hidden;background:#160d05;isolation:isolate;
+  min-height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;
 }
-.hero-band::before{
-  content:"";position:absolute;inset:0;
-  background:radial-gradient(ellipse 80% 60% at 70% 40%, rgba(13,148,136,.18) 0%, transparent 70%),
-             radial-gradient(ellipse 50% 80% at 20% 80%, rgba(0,93,83,.12) 0%, transparent 60%);
-  pointer-events:none;
+.lherobg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;pointer-events:none}
+.lherobg-scrim{position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:linear-gradient(180deg,rgba(10,28,36,.30),rgba(10,28,36,.42)),radial-gradient(78% 56% at 50% 50%,rgba(0,0,0,.30),transparent 72%)}
+.lhero>.lkicker,.lhero>h1,.lhero>.lead,.lhero>.lcta{position:relative;z-index:2}
+.lkicker{font-size:14px;font-weight:600;letter-spacing:0.4px;color:#e8b48a;margin-bottom:22px}
+.lhero h1{
+  font-size:clamp(40px,6.6vw,82px);line-height:1.04;letter-spacing:-2.4px;
+  font-weight:700;margin:0 auto;max-width:15ch;color:#fff;
+  font-family:var(--font-sans);text-wrap:balance;text-shadow:0 2px 24px rgba(0,0,0,.28);
 }
-.hero{
-  max-width:1120px;margin:0 auto;
-  padding:clamp(64px,10vw,140px) clamp(24px,5vw,64px) clamp(56px,8vw,120px);
-  position:relative;z-index:1;
+.lhero h1 em{font-style:normal;color:#e8954e}
+.lhero .lead{font-size:clamp(17px,1.6vw,22px);line-height:1.55;color:rgba(255,255,255,.86);max-width:46ch;margin:26px auto 0;font-weight:400}
+@media (prefers-reduced-motion:reduce){.lherobg{display:none}.lhero{background:#163a47 url("/static/hero-poster.jpg") center/cover}}
+.lcta{display:flex;gap:16px;justify-content:center;align-items:center;flex-wrap:wrap;margin-top:40px}
+.lcta .p{
+  display:inline-flex;align-items:center;gap:8px;background:var(--gold);color:#fff;
+  text-decoration:none;border-radius:980px;padding:15px 38px;font-weight:600;font-size:16px;
+  transition:var(--transition);
 }
-.hero h1{
-  font-size:clamp(32px,5vw,56px);line-height:1.12;letter-spacing:-1.5px;
-  margin:0 0 24px;font-weight:800;
-  font-family:var(--font-sans);text-wrap:balance;
-  color:#fff;
+.lcta .p:hover{background:var(--goldbright);transform:translateY(-1px)}
+.lcta .p:active{transform:translateY(0)}
+.lcta .p svg{transition:transform .2s ease}
+.lcta .p:hover svg{transform:translateX(3px)}
+.lcta .s{color:rgba(255,255,255,.92);text-decoration:none;font-weight:600;font-size:16px}
+.lcta .s:hover{text-decoration:underline;text-underline-offset:4px}
+/* ── Stat strip: quiet, centered, airy ── */
+.lstat{
+  max-width:820px;margin:clamp(56px,8vw,104px) auto 0;padding:0 24px;
+  display:flex;justify-content:center;gap:clamp(36px,7vw,84px);flex-wrap:wrap;text-align:center;
 }
-.hero h1 em{
-  color:#34d399;font-style:normal;font-weight:800;
-}
-.hero p{
-  font-size:clamp(15px,1.3vw,18px);color:rgba(255,255,255,.6);
-  line-height:1.7;margin:0 0 40px;max-width:52ch;
-}
-.hcta{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
-.hcta .p{
-  display:inline-flex;align-items:center;gap:8px;
-  text-decoration:none;border-radius:6px;padding:14px 32px;
-  font-weight:700;font-size:15px;transition:var(--transition);
-  background:#10b981;color:#fff;
-}
-.hcta .p:hover{background:#34d399;color:var(--ink)}
-.hcta .p svg{transition:transform .2s ease}
-.hcta .p:hover svg{transform:translateX(3px)}
-.hcta .s{
-  text-decoration:none;border-radius:6px;padding:14px 28px;
-  font-weight:600;font-size:15px;transition:var(--transition);
-  border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.7);
-  background:transparent;
-}
-.hcta .s:hover{border-color:rgba(255,255,255,.5);color:#fff}
-/* ── Proof strip ── */
-.proof-strip{
-  background:var(--card);border-bottom:1px solid var(--line);
-  padding:28px 0;
-}
-.proof-inner{
-  max-width:1120px;margin:0 auto;
-  padding:0 clamp(24px,5vw,64px);
-  display:flex;gap:clamp(24px,4vw,56px);align-items:center;
-  flex-wrap:wrap;justify-content:flex-start;
-}
-.proof-item{display:flex;align-items:center;gap:10px}
-.proof-ico{
-  width:36px;height:36px;border-radius:8px;
-  display:flex;align-items:center;justify-content:center;
-  font-size:16px;flex-shrink:0;
-  background:var(--rec);
-}
-.proof-text{font-size:13.5px;font-weight:600;color:var(--soft);line-height:1.35}
-.proof-text strong{color:var(--ink);font-weight:800;display:block;font-size:15px}
-/* ── How section ── */
-.lsec-wrap{
-  max-width:1120px;margin:0 auto;
-  padding:clamp(48px,7vw,96px) clamp(24px,5vw,64px);
-}
-.lsec-head{margin-bottom:clamp(32px,4vw,48px)}
-.lsec-head h2{
-  font-size:clamp(24px,3vw,32px);font-weight:800;letter-spacing:-0.5px;
-  margin:0 0 8px;color:var(--ink);font-family:var(--font-sans);
-}
-.lsec-head p{color:var(--muted);font-size:15px;font-weight:600;margin:0}
-.flow{
-  display:grid;grid-template-columns:repeat(4,1fr);gap:2px;
-  background:var(--line);border-radius:8px;overflow:hidden;
-}
-.flow-step{
-  background:var(--card);padding:clamp(24px,2.5vw,36px);
-  position:relative;transition:background .2s ease;
-}
-.flow-step:hover{background:var(--rec)}
-.flow-num{
-  font-family:var(--font-mono);font-size:12px;font-weight:800;
-  color:var(--gold);margin-bottom:14px;letter-spacing:1px;
-}
-.flow-step h3{
-  font-size:15.5px;font-weight:800;margin:0 0 8px;
-  color:var(--ink);font-family:var(--font-sans);
-}
-.flow-step p{color:var(--soft);font-size:13px;line-height:1.65;margin:0}
-/* ── Teaser section (today's picks) ── */
-.lsec{
-  max-width:1120px;margin:0 auto;
-  padding:0 clamp(24px,5vw,64px) clamp(48px,6vw,80px);
-}
-.lsec h2{
-  font-size:clamp(22px,2.5vw,28px);font-weight:800;letter-spacing:-0.5px;
-  margin:0 0 8px;color:var(--ink);font-family:var(--font-sans);
-}
-.lsec .ls{color:var(--muted);margin:0 0 28px;font-size:14.5px;font-weight:600}
+.lstat .n{font-size:34px;font-weight:700;color:var(--ink);line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-1px}
+.lstat .l{font-size:13.5px;color:var(--muted);font-weight:500;margin-top:8px}
+/* ── Process: centered heading, airy columns, no boxes ── */
+.lproc{max-width:1080px;margin:0 auto;padding:clamp(72px,11vw,150px) clamp(24px,5vw,44px);text-align:center}
+.lproc-h{font-size:clamp(28px,4vw,48px);font-weight:700;letter-spacing:-1.4px;margin:0 0 12px;color:var(--ink)}
+.lproc-s{color:var(--soft);font-weight:400;font-size:clamp(16px,1.5vw,20px);margin:0 auto clamp(48px,7vw,80px);max-width:44ch}
+.lsteps{display:grid;grid-template-columns:repeat(4,1fr);gap:clamp(28px,4vw,56px);text-align:left}
+.lstep .sn{font-size:13px;font-weight:600;color:var(--gold);letter-spacing:0.4px}
+.lstep h3{font-size:18px;font-weight:600;margin:12px 0 8px;color:var(--ink);font-family:var(--font-sans)}
+.lstep p{font-size:14px;line-height:1.6;color:var(--soft);margin:0}
+/* ── Teaser: today's real picks, rounded, calm ── */
+.lsec{max-width:880px;margin:0 auto;padding:0 clamp(24px,5vw,44px) clamp(72px,10vw,128px);text-align:center}
+.lsec h2{font-size:clamp(26px,3vw,40px);font-weight:700;letter-spacing:-1.2px;margin:0 0 10px;color:var(--ink);font-family:var(--font-sans)}
+.lsec .ls{color:var(--soft);margin:0 0 clamp(32px,5vw,48px);font-size:clamp(15px,1.4vw,18px);font-weight:400}
+.lsec .row{text-align:left}
+.lsec .rail:before,.lsec .rail .dot{display:none}
+.lsec article{border-radius:16px;border-color:var(--line)}
+.lsec .cta{display:inline-block;background:var(--gold);color:#fff;text-decoration:none;border-radius:980px;padding:13px 30px;font-weight:600;font-size:15px;margin-top:8px;transition:var(--transition)}
+.lsec .cta:hover{background:var(--goldbright)}
 /* ── Footer ── */
 .lfoot{
-  border-top:1px solid var(--line);
-  padding:32px clamp(24px,5vw,64px);
-  color:var(--muted);font-size:13px;text-align:center;font-weight:600;
-  max-width:1120px;margin:0 auto;
+  border-top:1px solid var(--line);padding:36px clamp(24px,5vw,44px);
+  color:var(--muted);font-size:13px;text-align:center;font-weight:500;
+  max-width:1080px;margin:0 auto;
 }
-/* ── Landing animations ── */
-@keyframes lfadeup{
-  from{opacity:0;transform:translateY(24px)}
-  to{opacity:1;transform:translateY(0)}
-}
-.hero h1,.hero p,.hcta,.proof-item,.flow-step{
-  animation:lfadeup .6s cubic-bezier(.16,1,.3,1) both;
-}
-.hero h1{animation-delay:.1s}
-.hero p{animation-delay:.2s}
-.hcta{animation-delay:.3s}
-.proof-item:nth-child(1){animation-delay:.35s}
-.proof-item:nth-child(2){animation-delay:.4s}
-.proof-item:nth-child(3){animation-delay:.45s}
-.flow-step:nth-child(1){animation-delay:.3s}
-.flow-step:nth-child(2){animation-delay:.4s}
-.flow-step:nth-child(3){animation-delay:.5s}
-.flow-step:nth-child(4){animation-delay:.6s}
-@media(prefers-reduced-motion:reduce){
-  .hero h1,.hero p,.hcta,.proof-item,.flow-step{animation:none}
-}
-@media(max-width:760px){
-  .flow{grid-template-columns:1fr}
-  .proof-inner{flex-direction:column;align-items:flex-start;gap:16px}
-}
+/* entrance motion handled by GSAP (see landing script); reduced-motion safe */
+@media(max-width:760px){.lsteps{grid-template-columns:1fr 1fr;gap:32px}}
+@media(max-width:440px){.lsteps{grid-template-columns:1fr}}
+"""
+
+
+_LAND_JS = """
+(function(){
+  if(!window.gsap){return;}
+  if(window.ScrollTrigger){gsap.registerPlugin(ScrollTrigger);}
+  var mm = gsap.matchMedia();
+  mm.add("(prefers-reduced-motion: no-preference)", function(){
+    var tl = gsap.timeline({defaults:{ease:"power3.out"}});
+    tl.from(".lkicker",{y:18,autoAlpha:0,duration:.6})
+      .from(".lhero h1",{y:26,autoAlpha:0,duration:.85},"-=.4")
+      .from(".lhero .lead",{y:18,autoAlpha:0,duration:.7},"-=.58")
+      .from(".lcta",{y:14,autoAlpha:0,duration:.6},"-=.5");
+    if(window.ScrollTrigger){
+      gsap.from(".lstat .it",{y:22,autoAlpha:0,duration:.6,stagger:.08,ease:"power3.out",
+        scrollTrigger:{trigger:".lstat",start:"top 85%"}});
+      gsap.from(".lstep",{y:26,autoAlpha:0,duration:.6,stagger:.1,ease:"power3.out",
+        scrollTrigger:{trigger:".lsteps",start:"top 82%"}});
+      gsap.from(".lsec .row",{y:26,autoAlpha:0,duration:.6,stagger:.1,ease:"power3.out",
+        scrollTrigger:{trigger:".lsec",start:"top 82%"}});
+    }
+  });
+})();
 """
 
 
@@ -823,56 +763,55 @@ def _landing() -> str:
     if days:
         _, opps = days[0]
         rows = "".join(
-            f'<div class=row><div class=rail><span class=rk>{int(o.get("score",0))}</span>'
-            f'<span class=sub>精选</span><span class=dot></span></div><article>'
+            f'<div class=row><div class=rail><span class=rk>{int(o.get("score",0))}<span class=u>分</span></span>'
+            f'<span class=sub>满分100</span><span class=dot></span></div><article>'
             f'<div class=meta><span class=src>{esc(o.get("source",""))}</span>'
             f'<span class="{_vclass(o.get("verdict",""))}">{esc(o.get("verdict",""))}</span></div>'
             f'<h3>{esc(o.get("idea",""))}</h3><p class=summary>{esc(_hook(o))}</p></article></div>'
             for o in sorted(opps, key=lambda x: x.get("score", 0), reverse=True)[:3])
-        teaser = (f'<div class=lsec><h2>看看今天挖到了什么</h2>'
+        teaser = (f'<section class=lsec id=today><h2>看看今天挖到了什么</h2>'
                   f'<p class=ls>每天清晨更新，已判定值不值得做、怎么变现</p>{rows}'
-                  f'<p style="margin-top:18px"><a class=cta href="/signup">免费注册看全部</a></p></div>')
+                  f'<p style="margin-top:22px"><a class=cta href="/signup">免费注册看全部 →</a></p></section>')
 
     today_count = sum(len(o) for _, o in days[:1]) if days else 0
     total_count = sum(len(o) for _, o in days) if days else 0
     day_count = len(days) if days else 0
 
     body = f"""
-<div class=hero-band>
 <nav class=lnav>
-<div class=llogo>
-<img class="lg lg-dark" src="/static/logo-on-dark.png" alt="金羊毛 Argo">
-</div>
+<img class="lg" src="/static/logo-on-dark.png" alt="金羊毛 Argo">
 <div class=lr><a href="/login">登录</a><a class=s href="/signup">免费注册</a></div>
 </nav>
 
-<div class=hero>
-<h1>每天帮你找到<br><em>值得做</em>、<em>能赚钱</em>的产品机会</h1>
-<p>自动扫描公开数据源，用真需求框架筛掉伪机会，只留下「有人在痛、有人愿掏钱」的方向——痛点、谁买单、怎么变现、如何切入，全部给到。</p>
-<div class=hcta>
+<header class=lhero>
+<video class=lherobg autoplay muted loop playsinline preload=metadata poster="/static/hero-poster.jpg"><source src="/static/hero.mp4" type="video/mp4"></video>
+<div class=lherobg-scrim></div>
+<div class=lkicker>私人产品机会雷达</div>
+<h1>每天替你挑出<em>值得做</em>、<em>能赚钱</em>的产品机会</h1>
+<p class=lead>自动扫描公开数据源，筛掉伪需求，只留下有人在痛、有人愿掏钱的方向。</p>
+<div class=lcta>
 <a class=p href="/signup">免费开始 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></a>
-<a class=s href="/agent">Agent 接入</a>
+<a class=s href="#today">看看今天挖到了什么</a>
 </div>
-</div>
+</header>
+
+<div class=lstat>
+<div class=it><div class=n>{today_count if today_count else '—'}</div><div class=l>今日新机会</div></div>
+<div class=it><div class=n>{total_count if total_count else '—'}</div><div class=l>累计已判定</div></div>
+<div class=it><div class=n>{day_count if day_count else '—'}</div><div class=l>持续运行天数</div></div>
+<div class=it><div class=n>4 + 3</div><div class=l>四道闸 · 三面镜</div></div>
 </div>
 
-<div class=proof-strip>
-<div class=proof-inner>
-<div class=proof-item><div class=proof-ico>📡</div><div class=proof-text><strong>多平台覆盖</strong>公开数据源实时扫描</div></div>
-<div class=proof-item><div class=proof-ico>🧠</div><div class=proof-text><strong>四道闸 + 三面镜</strong>真需求判定框架</div></div>
-<div class=proof-item><div class=proof-ico>📊</div><div class=proof-text><strong>{total_count if total_count else '—'} 条机会 · {day_count if day_count else '—'} 天</strong>持续积累中</div></div>
+<section class=lproc>
+<h2 class=lproc-h>从噪音到决策，四步跑完</h2>
+<p class=lproc-s>每天清晨自动跑完全流程，你只看结果</p>
+<div class=lsteps>
+<div class=lstep><div class=sn>01 · SCAN</div><h3>广度扫描</h3><p>每天自动扫多个公开数据源，捞出真实需求线索。</p></div>
+<div class=lstep><div class=sn>02 · JUDGE</div><h3>机会判定</h3><p>价值·共识·模式·求真四道闸 + 三面镜子，戳破伪机会、标记真机会。</p></div>
+<div class=lstep><div class=sn>03 · ANALYZE</div><h3>变现分析</h3><p>痛点、谁愿意付费、变现路径、切入点、风险，逐条结构化输出。</p></div>
+<div class=lstep><div class=sn>04 · DIVE</div><h3>随时深挖</h3><p>网页或 Telegram 里直接追问某条机会，像有个懂行的操盘军师。</p></div>
 </div>
-</div>
-
-<div class=lsec-wrap>
-<div class=lsec-head><h2>从噪音到决策，四步完成</h2><p>每天清晨自动跑完全流程，你只看结果</p></div>
-<div class=flow>
-<div class=flow-step><div class=flow-num>SCAN</div><h3>广度扫描</h3><p>每天自动扫多个公开数据源，捞出真实需求线索。</p></div>
-<div class=flow-step><div class=flow-num>JUDGE</div><h3>机会判定</h3><p>价值·共识·模式·求真四道闸 + 三面镜子，戳破伪机会、标记真机会。</p></div>
-<div class=flow-step><div class=flow-num>ANALYZE</div><h3>变现分析</h3><p>痛点、谁愿意付费、变现路径、切入点、风险，逐条结构化输出。</p></div>
-<div class=flow-step><div class=flow-num>DIVE</div><h3>随时深挖</h3><p>网页或 Telegram 里直接追问某条机会，像有个懂行的操盘军师。</p></div>
-</div>
-</div>
+</section>
 
 {teaser}
 
@@ -883,7 +822,11 @@ def _landing() -> str:
 <title>金羊毛 Argo · 每天找到值得做、能赚钱的产品机会</title>
 <meta name=description content="自动扫描公开源，筛出有人在痛、有人愿掏钱的产品机会，给出痛点、变现路径与切入点。">
 <style>{_CSS}{_LAND_CSS}</style>
-</head><body>{body}</body></html>"""
+</head><body>{body}
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
+<script>{_LAND_JS}</script>
+</body></html>"""
 
 
 def _featured(welcome: bool = False) -> str:
@@ -891,13 +834,15 @@ def _featured(welcome: bool = False) -> str:
     wb = ('<div class=welcome><b>欢迎来到金羊毛 Argo</b>'
           '每条机会都判过「值不值得做」，点进去看痛点、谁买单、怎么变现。'
           '想深挖某条？详情页直接问 Argo。</div>') if welcome else ''
-    head = (wb + '<h1 class=ttl>精选</h1><p class=sub>有人在痛 + 有人愿掏钱 · AI 筛出的产品机会</p><div class=hr></div>')
+    head = (wb + '<h1 class=ttl>精选</h1><p class=sub>有人在痛 + 有人愿掏钱 · AI 筛出的产品机会</p>'
+            '<p class=legend>每条左侧是「机会分」：AI 按真需求框架打分，满分 100，越高越值得做。</p>'
+            '<div class=hr></div>')
     head += _toolbar("全部", "")
     if not days:
         return _page("金羊毛 Argo", head + '<div class=empty><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><b>流水线还没跑</b>跑一次 <code>python3 -m src.main</code> 就有数据了</div>', "/")
     day, opps = days[0]
     ranked = sorted(opps, key=lambda x: x.get("score", 0), reverse=True)
-    body = (head + _hot(ranked[:3]) + f'<h2 class=daygrp>{esc(day)} {_weekday(day)} · {len(opps)} 条</h2>'
+    body = (head + f'<h2 class=daygrp>{esc(day)} {_weekday(day)} · {len(opps)} 条</h2>'
             + _feed(ranked))
     return _page("金羊毛 Argo · 精选", body, "/")
 
@@ -1058,11 +1003,11 @@ def _auth_bare(title: str, body: str) -> str:
 <style>{_CSS}
 .auth-wrap{{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--bg);padding:24px}}
 .auth-logo{{height:54px;margin-bottom:36px;display:block}}
-.auth-logo.lg-dark{{display:none}}
-html[data-theme=dark] .auth-logo.lg-light{{display:none}}
-html[data-theme=dark] .auth-logo.lg-dark{{display:block}}
+.auth-logo.lg-light{{display:none}}
+html[data-theme=light] .auth-logo.lg-light{{display:block}}
+html[data-theme=light] .auth-logo.lg-dark{{display:none}}
 </style>
-<script>(function(){{if(localStorage.getItem('argo-theme')==='dark')document.documentElement.setAttribute('data-theme','dark')}})();</script>
+<script>(function(){{if(localStorage.getItem('argo-theme')==='light')document.documentElement.setAttribute('data-theme','light')}})();</script>
 </head><body>
 <div class=auth-wrap>
 <img class="auth-logo lg-light" src="/static/logo-on-light.png" alt="金羊毛 Argo">
@@ -1264,6 +1209,8 @@ def route(method: str, raw_path: str, body: bytes, headers: dict) -> tuple[int, 
         return 200, H, _landing()
     if method == "GET" and path == "/app":
         return 200, H, _featured()
+    if method == "GET" and path == "/landing":  # 预览落地页（无视登录态）
+        return 200, H, _landing()
     if method == "GET" and path == "/robots.txt":
         return 200, "text/plain", ("User-agent: *\nAllow: /$\n"
                                    "Disallow: /app\nDisallow: /all\nDisallow: /account\n"

@@ -31,7 +31,7 @@ def seed(tmp_path, monkeypatch):
 def test_featured_page():
     status, ctype, body = web.route("GET", "/app", b"", {})
     assert status == 200 and "text/html" in ctype
-    assert "发票工具" in body and "今日热点" in body and "金羊毛" in body
+    assert "发票工具" in body and "机会分" in body and "金羊毛" in body
     assert "搜索" in body and "精选" in body  # 内容头：搜索框 + 标题
     assert "logo-on-light.png" in body  # 真 logo 已嵌入
 

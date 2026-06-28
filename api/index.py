@@ -14,7 +14,8 @@ from src import web, auth, admin  # noqa: E402
 
 STATIC = ROOT / "static"
 _MIME = {".png": "image/png", ".jpg": "image/jpeg", ".svg": "image/svg+xml",
-         ".ico": "image/x-icon", ".css": "text/css", ".js": "application/javascript"}
+         ".ico": "image/x-icon", ".css": "text/css", ".js": "application/javascript",
+         ".mp4": "video/mp4"}
 
 
 def app(environ, start_response):
