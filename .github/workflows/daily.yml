@@ -5,7 +5,7 @@ name: Argo 每日机会流水线
 on:
   schedule:
     - cron: "0 23 * * *"   # 23:00 UTC = 次日 07:00 Asia/Shanghai
-    - cron: "0 11 * * *"   # 11:00 UTC = 当日 19:00 Asia/Shanghai
+    - cron: "0 9 * * *"    # 09:00 UTC = 当日 17:00 Asia/Shanghai
   workflow_dispatch: {}
 
 jobs:
