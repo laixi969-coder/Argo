@@ -76,7 +76,7 @@ def _read_values(path=ENV_PATH):
         stripped = line.strip()
         if stripped and not stripped.startswith("#") and "=" in stripped:
             key, value = stripped.split("=", 1)
-            values[key.strip()] = value.strip()
+            values[key.strip()] = value.strip().strip('"').strip("'")
     return values
 
 

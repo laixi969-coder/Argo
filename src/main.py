@@ -2,11 +2,16 @@ import json
 import os
 from pathlib import Path
 
-from src.sources import producthunt, reddit, tikhub
+from src.sources import producthunt, reddit, reddit_tikhub, tikhub
 from src import config, dedup, email_report, extract, prefilter, rank, score, store, telegram_report
 
 
-SOURCES = {"reddit": reddit.fetch, "producthunt": producthunt.fetch, "tikhub": tikhub.fetch}
+SOURCES = {
+    "reddit": reddit.fetch,
+    "reddit_tikhub": reddit_tikhub.fetch,
+    "producthunt": producthunt.fetch,
+    "tikhub": tikhub.fetch,
+}
 REPORT = Path(__file__).resolve().parent.parent / "data" / "latest_report.json"
 
 

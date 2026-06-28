@@ -1,15 +1,6 @@
 import requests
 from src import config
-
-# 抓「有人表达需求/愿意掏钱」的视频描述，当作产品机会信号
-KEYWORDS = [
-    "I wish there was an app",
-    "why is there no app",
-    "someone should make",
-    "I would pay for",
-    "nobody has made",
-    "there should be an app",
-]
+from src.sources.demand_keywords import KEYWORDS  # 跨平台共用需求词库
 
 _PER_KEYWORD = 10  # 每个关键词抓多少条，控制 credit 消耗
 
