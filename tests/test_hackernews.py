@@ -41,7 +41,13 @@ def test_fetch_skips_titleless(monkeypatch):
     assert hackernews.fetch() == []
 
 
-def test_fetch_raises_on_bad_payload(monkeypatch):
+def test_search_raises_on_bad_payload(monkeypatch):
     _patch(monkeypatch, {"error": "nope"})
     with pytest.raises(RuntimeError, match="返回异常"):
-        hackernews.fetch()
+        hackernews._search("kw")
+
+
+def test_fetch_degrades_to_empty_when_all_keywords_fail(monkeypatch):
+    # 坏 payload 时单关键词失败被吞，整源降级返回空，不拖垮流水线
+    _patch(monkeypatch, {"error": "nope"})
+    assert hackernews.fetch() == []
