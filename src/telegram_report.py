@@ -7,6 +7,12 @@ from src import telegram
 esc = telegram.esc
 
 
+def _edge(o: dict) -> str:
+    """交付范式标签：有值且非「未知」才显示，老数据无此字段不报错。"""
+    edge = str(o.get("delivery_edge", "") or "").strip()
+    return f" · 🎯{esc(edge)}" if edge and edge != "未知" else ""
+
+
 def render(opps: list[dict], missing_sources: list[str]) -> str:
     head = f"<b>金羊毛 Argo · 今日选品 Top {len(opps)}</b>"
     if not opps:
@@ -15,7 +21,8 @@ def render(opps: list[dict], missing_sources: list[str]) -> str:
         body = "\n\n".join(
             f"<b>{i + 1}. {esc(o['idea'])}</b>\n"
             f"{esc(o['verdict'])} · {int(o['score'])}分 · "
-            f"<a href=\"{esc(o['url'])}\">{esc(o['source'])}</a>\n"
+            f"<a href=\"{esc(o['url'])}\">{esc(o['source'])}</a>"
+            f"{_edge(o)}\n"
             f"{esc(o['reason'])}"
             for i, o in enumerate(opps)
         )
