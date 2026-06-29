@@ -22,17 +22,9 @@ def _label(source: str) -> str:
 
 
 def _edge(o: dict) -> str:
-    """交付范式 + 操盘手契合标签：有值且非「未知」才显示，老数据无此字段不报错。"""
-    tags = ""
+    """交付范式标签：有值且非「未知」才显示，老数据无此字段不报错。"""
     edge = str(o.get("delivery_edge", "") or "").strip()
-    if edge and edge != "未知":
-        tags += f" · 🎯{esc(edge)}"
-    fit = str(o.get("edge_fit", "") or "").strip()
-    if fit and fit != "未知":
-        # edge_fit 形如「高，理由…」，标签只取等级首段，理由进正文太长
-        level = fit.split("，")[0].split(",")[0].strip()
-        tags += f" · 🧭契合{esc(level)}"
-    return tags
+    return f" · 🎯{esc(edge)}" if edge and edge != "未知" else ""
 
 
 def render(opps: list[dict], missing_sources: list[str]) -> str:
