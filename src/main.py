@@ -62,7 +62,7 @@ def run():
         _deliver([], list(SOURCES))
         return
     print(f"[漏斗] 抓取合计 {len(opps)}")
-    top = prefilter.prefilter(opps, n=30)
+    top = prefilter.prefilter(opps, n=60)
     print(f"[漏斗] 源公平粗筛 → {len(top)}")
     top = dedup.filter_fresh(top, min_keep=15)
     print(f"[漏斗] 去重保鲜 → {len(top)}")
