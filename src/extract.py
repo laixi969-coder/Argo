@@ -1,6 +1,19 @@
 import json
+import re
 
 from src.llm import call_llm
+
+# 从坏 JSON（如内部引号未转义解析失败）里捞出 idea 那句话，避免把整坨原文塞进展示
+_IDEA_RE = re.compile(r'"idea"\s*:\s*"(.+?)"\s*[,}\n]', re.DOTALL)
+
+
+def _salvage_idea(raw, fallback):
+    m = _IDEA_RE.search(raw)
+    idea = m.group(1).strip() if m else ""
+    # 捞出来的内容若仍像 JSON 残片（含大括号/多个字段），不可信，退回标题
+    if idea and "{" not in idea and '":' not in idea:
+        return idea
+    return fallback
 
 
 PROMPT = """你是产品机会的证据提取器。只根据原文提取事实，不评价机会好坏，也绝不补全原文没有的信息。
@@ -72,8 +85,10 @@ def extract_ideas(opps, llm=call_llm):
             try:
                 data = _parse_json(raw)
             except (ValueError, json.JSONDecodeError):
-                # 兼容旧模型的一句话输出，但明确标记为没有结构化证据。
-                o["idea"] = raw or o.get("title", "")
+                # 解析失败：可能是一句话输出，也可能是坏 JSON。
+                # 坏 JSON 时只捞 idea 句子，绝不把整坨原文当 idea 显示。
+                title = o.get("title", "")
+                o["idea"] = _salvage_idea(raw, title) if "{" in raw else (raw or title)
                 for field in EVIDENCE_FIELDS:
                     o[field] = "未知"
                 o["missing_evidence"] = ["结构化证据提取失败"]

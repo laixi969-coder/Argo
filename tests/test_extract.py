@@ -36,3 +36,19 @@ def test_extract_bad_json_falls_back_without_fake_evidence():
     assert out[0]["past_behavior"] == "未知"
     assert out[0]["wtp_evidence"] == "未知"
     assert out[0]["missing_evidence"] == ["结构化证据提取失败"]
+
+
+def test_extract_broken_json_with_inner_quotes_does_not_dump_blob():
+    # LLM 输出 JSON 但内部引号未转义 → 解析失败；不能把整坨 JSON 当 idea
+    bad = '{\n "idea": "低维护室内植物产品",\n "customer": "评论者（"me"）",\n "job": "养护室内植物"\n}'
+    opps = [{"title": "house plants that survive neglect", "raw_text": "x"}]
+    out = extract_ideas(opps, llm=lambda p: bad)
+    assert out[0]["idea"] == "低维护室内植物产品"
+    assert "{" not in out[0]["idea"] and '"job"' not in out[0]["idea"]
+
+
+def test_extract_broken_json_no_salvageable_idea_uses_title():
+    bad = '{ "customer": "某人", "note": "完全没有 idea 字段的坏 JSON" '
+    opps = [{"title": "原始标题兜底", "raw_text": "x"}]
+    out = extract_ideas(opps, llm=lambda p: bad)
+    assert out[0]["idea"] == "原始标题兜底"
