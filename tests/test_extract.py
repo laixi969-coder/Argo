@@ -52,3 +52,17 @@ def test_extract_broken_json_no_salvageable_idea_uses_title():
     opps = [{"title": "原始标题兜底", "raw_text": "x"}]
     out = extract_ideas(opps, llm=lambda p: bad)
     assert out[0]["idea"] == "原始标题兜底"
+
+
+def test_extract_marks_non_demand_as_false():
+    resp = '{"is_demand": false, "idea": "未知", "customer": "未知"}'
+    opps = [{"title": "Backdoor in xz/liblzma", "raw_text": ""}]
+    out = extract_ideas(opps, llm=lambda p: resp)
+    assert out[0]["is_demand"] is False
+
+
+def test_extract_defaults_is_demand_true_when_absent():
+    resp = '{"idea": "自动发票拆分工具", "customer": "自由职业者"}'
+    opps = [{"title": "x", "raw_text": "y"}]
+    out = extract_ideas(opps, llm=lambda p: resp)
+    assert out[0]["is_demand"] is True

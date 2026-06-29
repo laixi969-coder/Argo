@@ -64,6 +64,8 @@ def run():
     top = prefilter.prefilter(opps, n=30)
     top = dedup.filter_fresh(top, min_keep=15)
     top = extract.extract_ideas(top)
+    # 剔除新闻/段子/公告等非需求内容，再进昂贵的真需求精判（去噪 + 省 LLM 调用）
+    top = [o for o in top if o.get("is_demand", True)]
     top = score.score_real_demand(top)
     final = rank.rank(top, n=20)
     _save(final)

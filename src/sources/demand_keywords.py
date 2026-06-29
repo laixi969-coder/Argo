@@ -21,6 +21,11 @@ KEYWORDS = [
     # 痛点 → 机会
     "tired of doing this manually",
     "wasting hours on",
+    # 行为痛点（隐性需求：描述重复绕路，但没明说要工具）
+    "every week I have to",
+    "I keep having to",
+    "my current workaround is",
+    "there has to be a better way",
     # AI 专项
     "is there an AI that",
 ]
