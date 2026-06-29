@@ -61,13 +61,18 @@ def run():
         _save([])
         _deliver([], list(SOURCES))
         return
+    print(f"[漏斗] 抓取合计 {len(opps)}")
     top = prefilter.prefilter(opps, n=30)
+    print(f"[漏斗] 源公平粗筛 → {len(top)}")
     top = dedup.filter_fresh(top, min_keep=15)
+    print(f"[漏斗] 去重保鲜 → {len(top)}")
     top = extract.extract_ideas(top)
     # 剔除新闻/段子/公告等非需求内容，再进昂贵的真需求精判（去噪 + 省 LLM 调用）
     top = [o for o in top if o.get("is_demand", True)]
+    print(f"[漏斗] 剔除非需求(is_demand) → {len(top)}")
     top = score.score_real_demand(top)
     final = rank.rank(top, n=20)
+    print(f"[漏斗] 精判+排序(去伪需求/未知) → {len(final)}")
     _save(final)
     store.append(final)
     dedup.mark_seen(final)  # 结果已存妥即登记去重，不受发送成败影响
