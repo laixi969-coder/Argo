@@ -35,7 +35,7 @@ def _ph():
 
 
 def _hn():
-    return f"抓到 {len(hackernews.fetch(limit=5))} 条"
+    return f"抓到 {len(hackernews.fetch())} 条"
 
 
 def _reddit():
