@@ -6,6 +6,20 @@ from src import telegram
 
 esc = telegram.esc
 
+# 显示用的源名（合并细分变体到大名字），只影响展示，不动内部 source 值
+_SOURCE_LABELS = {
+    "reddit_tikhub": "Reddit",
+    "reddit_comments_tikhub": "Reddit",
+    "reddit": "Reddit",
+    "producthunt": "Product Hunt",
+    "hackernews": "Hacker News",
+    "tikhub": "TikTok",
+}
+
+
+def _label(source: str) -> str:
+    return _SOURCE_LABELS.get(source, source)
+
 
 def _edge(o: dict) -> str:
     """交付范式标签：有值且非「未知」才显示，老数据无此字段不报错。"""
@@ -21,7 +35,7 @@ def render(opps: list[dict], missing_sources: list[str]) -> str:
         body = "\n\n".join(
             f"<b>{i + 1}. {esc(o['idea'])}</b>\n"
             f"{esc(o['verdict'])} · {int(o['score'])}分 · "
-            f"<a href=\"{esc(o['url'])}\">{esc(o['source'])}</a>"
+            f"<a href=\"{esc(o['url'])}\">{esc(_label(o['source']))}</a>"
             f"{_edge(o)}\n"
             f"{esc(o['reason'])}"
             for i, o in enumerate(opps)
