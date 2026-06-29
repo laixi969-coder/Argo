@@ -1,16 +1,17 @@
 import json
 import os
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from src.sources import producthunt, reddit_comments_tikhub, reddit_tikhub, tikhub, twitter_tikhub
+from src.sources import hackernews, producthunt, reddit_comments_tikhub, reddit_tikhub, tikhub
 from src import config, dedup, email_report, extract, prefilter, rank, score, store, telegram_report
 
 
 SOURCES = {
     "reddit_tikhub": reddit_tikhub.fetch,
     "reddit_comments_tikhub": reddit_comments_tikhub.fetch,
-    "twitter_tikhub": twitter_tikhub.fetch,
     "producthunt": producthunt.fetch,
+    "hackernews": hackernews.fetch,
     "tikhub": tikhub.fetch,
 }
 REPORT = Path(__file__).resolve().parent.parent / "data" / "latest_report.json"
@@ -35,14 +36,27 @@ def _deliver(opps, missing):
         print("[warn] 未配置邮件或 Telegram，结果仅保存到本地网站")
 
 
+def _fetch_one(item):
+    """单个源抓取，返回 (源名, 结果列表, 错误)。失败不抛，交给上层统计。"""
+    name, fetch = item
+    try:
+        return name, fetch(), None
+    except Exception as exc:
+        return name, [], exc
+
+
 def run():
     opps, missing = [], []
-    for name, fetch in SOURCES.items():
-        try:
-            opps += fetch()
-        except Exception as exc:
+    # 各源互不依赖，并行抓取；总耗时 = 最慢的源，而非各源相加
+    with ThreadPoolExecutor(max_workers=len(SOURCES)) as pool:
+        results = list(pool.map(_fetch_one, SOURCES.items()))
+    for name, got, exc in results:
+        if exc is not None:
             missing.append(name)
             print(f"[warn] 源 {name} 失败: {exc}")
+        else:
+            print(f"[ok] 源 {name} 抓到 {len(got)} 条")
+            opps += got
     if not opps:
         _save([])
         _deliver([], list(SOURCES))

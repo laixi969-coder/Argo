@@ -11,7 +11,11 @@
   </array>
   <key>WorkingDirectory</key><string>/Users/xiaolongxia/Argo</string>
   <key>StartCalendarInterval</key>
-  <dict><key>Hour</key><integer>7</integer><key>Minute</key><integer>0</integer></dict>
+  <array>
+    <dict><key>Hour</key><integer>7</integer><key>Minute</key><integer>0</integer></dict>
+    <dict><key>Hour</key><integer>13</integer><key>Minute</key><integer>0</integer></dict>
+    <dict><key>Hour</key><integer>19</integer><key>Minute</key><integer>0</integer></dict>
+  </array>
   <key>StandardOutPath</key><string>/tmp/argo.log</string>
   <key>StandardErrorPath</key><string>/tmp/argo.log</string>
 </dict>

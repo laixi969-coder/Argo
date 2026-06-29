@@ -8,17 +8,34 @@ import json
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
+from src import kv
+
 SEEN = Path(__file__).resolve().parent.parent / "data" / "seen.json"
+KV_KEY = "seen"
 TTL_DAYS = 14  # 超过这天数没再出现，视作"又新"可重推
 
 
 def _load() -> dict:
+    # KV 可用时以 KV 为准（GitHub Actions 等无状态环境靠它记住已推送）
+    if kv.enabled():
+        try:
+            return kv.get_json(KV_KEY) or {}
+        except Exception:
+            return {}
     if not SEEN.exists():
         return {}
     try:
         return json.loads(SEEN.read_text())
     except Exception:
         return {}
+
+
+def _save(seen: dict) -> None:
+    if kv.enabled():
+        kv.set_json(KV_KEY, seen)
+        return
+    SEEN.parent.mkdir(exist_ok=True)
+    SEEN.write_text(json.dumps(seen, ensure_ascii=False))
 
 
 def _is_recent(iso: str) -> bool:
@@ -46,7 +63,6 @@ def mark_seen(opps: list[dict]) -> None:
     for o in opps:
         if o.get("url"):
             seen[o["url"]] = today
-    # 顺手清理过期项，文件不无限膨胀
+    # 顺手清理过期项，不无限膨胀
     seen = {u: d for u, d in seen.items() if _is_recent(d)}
-    SEEN.parent.mkdir(exist_ok=True)
-    SEEN.write_text(json.dumps(seen, ensure_ascii=False))
+    _save(seen)

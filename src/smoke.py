@@ -5,7 +5,7 @@
 会真打网络、真发一条 Telegram 测试消息给你。
 """
 from src import config, telegram, llm
-from src.sources import reddit, producthunt
+from src.sources import reddit, producthunt, hackernews
 
 
 def _check(name: str, fn) -> bool:
@@ -34,6 +34,10 @@ def _ph():
     return f"抓到 {n} 条"
 
 
+def _hn():
+    return f"抓到 {len(hackernews.fetch(limit=5))} 条"
+
+
 def _reddit():
     if not config.get("REDDIT_CLIENT_ID"):
         return "未配置，跳过（可选源）"
@@ -48,12 +52,13 @@ def run() -> bool:
         _check("大模型 LLM", _llm),
         _check("Telegram", _telegram),
         _check("Product Hunt", _ph),
+        _check("Hacker News", _hn),
         _check("Reddit(可选)", _reddit),
     ]
     print("-" * 56)
-    # Reddit 可选，不计入硬性通过；前三项必须全绿
-    core_ok = all(results[:3])
-    print("✅ 核心三项全通，可以发车正式跑 python3 -m src.main"
+    # Reddit 可选，不计入硬性通过；前四项必须全绿（HN 无需 key，恒应通）
+    core_ok = all(results[:4])
+    print("✅ 核心项全通，可以发车正式跑 python3 -m src.main"
           if core_ok else "❌ 还有核心项不通，按上面报错修对应 key / 网络")
     return core_ok
 
