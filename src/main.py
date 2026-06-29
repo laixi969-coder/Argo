@@ -68,9 +68,12 @@ def run():
     final = rank.rank(top, n=20)
     _save(final)
     store.append(final)
-    _deliver(final, missing)
-    dedup.mark_seen(final)
-    print(f"[ok] 保存并发送 {len(final)} 条机会，缺源 {missing}")
+    dedup.mark_seen(final)  # 结果已存妥即登记去重，不受发送成败影响
+    try:
+        _deliver(final, missing)
+    except Exception as exc:  # 发送失败不算流水线失败：结果已存网站，下次再推
+        print(f"[warn] 发送失败（结果已存网站）: {exc}")
+    print(f"[ok] 保存 {len(final)} 条机会，缺源 {missing}")
 
 
 if __name__ == "__main__":
