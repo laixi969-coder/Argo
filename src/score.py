@@ -1,6 +1,9 @@
 import json
+from concurrent.futures import ThreadPoolExecutor
 
 from src.llm import call_llm
+
+_CONCURRENCY = 6  # LLM 并发数：压缩总耗时，又不至于把中转站打到限流
 
 
 PROMPT = """你是「真需求」决策闸门。依据妈妈测试、支付意愿（WTP）和价值→共识→模式闸门，判断下面的产品机会。
@@ -67,27 +70,32 @@ def _parse_result(raw):
 
 
 def score_real_demand(opps, llm=call_llm):
-    for o in opps:
-        try:
-            evidence = json.dumps(_material(o), ensure_ascii=False, indent=2)
-            raw = llm(PROMPT.format(evidence=evidence))
-            data, score = _parse_result(raw)
-            o["verdict"] = data["verdict"]
-            o["score"] = score
-            o["reason"] = str(data["reason"]).strip()
-            strength = data.get("evidence_strength", "未知")
-            o["evidence_strength"] = (
-                strength if strength in VALID_EVIDENCE_STRENGTH else "未知"
-            )
-            o["next_validation"] = str(
-                data.get("next_validation") or "补采过去行为与真实支付证据"
-            ).strip()
-            o["delivery_edge"] = str(data.get("delivery_edge") or "未知").strip()
-        except Exception:
-            o["verdict"] = "待验证"
-            o["score"] = float(o.get("signal", 0))
-            o["reason"] = "真需求精判失败，按源头信号保留"
-            o["evidence_strength"] = "未知"
-            o["next_validation"] = "补采过去行为与真实支付证据"
-            o["delivery_edge"] = "未知"
+    # 逐条独立，可并发；总耗时从「条数×单次」压到约 1/并发数
+    with ThreadPoolExecutor(max_workers=_CONCURRENCY) as pool:
+        list(pool.map(lambda o: _score_one(o, llm), opps))
     return opps
+
+
+def _score_one(o, llm):
+    try:
+        evidence = json.dumps(_material(o), ensure_ascii=False, indent=2)
+        raw = llm(PROMPT.format(evidence=evidence))
+        data, score = _parse_result(raw)
+        o["verdict"] = data["verdict"]
+        o["score"] = score
+        o["reason"] = str(data["reason"]).strip()
+        strength = data.get("evidence_strength", "未知")
+        o["evidence_strength"] = (
+            strength if strength in VALID_EVIDENCE_STRENGTH else "未知"
+        )
+        o["next_validation"] = str(
+            data.get("next_validation") or "补采过去行为与真实支付证据"
+        ).strip()
+        o["delivery_edge"] = str(data.get("delivery_edge") or "未知").strip()
+    except Exception:
+        o["verdict"] = "待验证"
+        o["score"] = float(o.get("signal", 0))
+        o["reason"] = "真需求精判失败，按源头信号保留"
+        o["evidence_strength"] = "未知"
+        o["next_validation"] = "补采过去行为与真实支付证据"
+        o["delivery_edge"] = "未知"

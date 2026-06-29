@@ -1,7 +1,10 @@
 import json
 import re
+from concurrent.futures import ThreadPoolExecutor
 
 from src.llm import call_llm
+
+_CONCURRENCY = 6  # LLM 并发数：压缩总耗时，又不至于把中转站打到限流
 
 # 从坏 JSON（如内部引号未转义解析失败）里捞出 idea 那句话，避免把整坨原文塞进展示
 _IDEA_RE = re.compile(r'"idea"\s*:\s*"(.+?)"\s*[,}\n]', re.DOTALL)
@@ -74,38 +77,43 @@ def _evidence_summary(opp):
 
 
 def extract_ideas(opps, llm=call_llm):
-    for o in opps:
+    # 逐条独立，可并发；总耗时从「条数×单次」压到约 1/并发数
+    with ThreadPoolExecutor(max_workers=_CONCURRENCY) as pool:
+        list(pool.map(lambda o: _extract_one(o, llm), opps))
+    return opps
+
+
+def _extract_one(o, llm):
+    try:
+        raw = llm(
+            PROMPT.format(
+                title=o.get("title", ""),
+                text=o.get("raw_text", "")[:3000],
+            )
+        ).strip()
         try:
-            raw = llm(
-                PROMPT.format(
-                    title=o.get("title", ""),
-                    text=o.get("raw_text", "")[:3000],
-                )
-            ).strip()
-            try:
-                data = _parse_json(raw)
-            except (ValueError, json.JSONDecodeError):
-                # 解析失败：可能是一句话输出，也可能是坏 JSON。
-                # 坏 JSON 时只捞 idea 句子，绝不把整坨原文当 idea 显示。
-                title = o.get("title", "")
-                o["idea"] = _salvage_idea(raw, title) if "{" in raw else (raw or title)
-                for field in EVIDENCE_FIELDS:
-                    o[field] = "未知"
-                o["missing_evidence"] = ["结构化证据提取失败"]
-            else:
-                o["idea"] = str(data["idea"]).strip()
-                for field in EVIDENCE_FIELDS:
-                    o[field] = str(data.get(field) or "未知").strip()
-                missing = data.get("missing_evidence", [])
-                o["missing_evidence"] = (
-                    [str(item).strip() for item in missing if str(item).strip()]
-                    if isinstance(missing, list)
-                    else [str(missing).strip()]
-                )
-        except Exception:
-            o["idea"] = o.get("title", "")
+            data = _parse_json(raw)
+        except (ValueError, json.JSONDecodeError):
+            # 解析失败：可能是一句话输出，也可能是坏 JSON。
+            # 坏 JSON 时只捞 idea 句子，绝不把整坨原文当 idea 显示。
+            title = o.get("title", "")
+            o["idea"] = _salvage_idea(raw, title) if "{" in raw else (raw or title)
             for field in EVIDENCE_FIELDS:
                 o[field] = "未知"
-            o["missing_evidence"] = ["证据提取调用失败"]
-        o["demand_evidence"] = _evidence_summary(o)
-    return opps
+            o["missing_evidence"] = ["结构化证据提取失败"]
+        else:
+            o["idea"] = str(data["idea"]).strip()
+            for field in EVIDENCE_FIELDS:
+                o[field] = str(data.get(field) or "未知").strip()
+            missing = data.get("missing_evidence", [])
+            o["missing_evidence"] = (
+                [str(item).strip() for item in missing if str(item).strip()]
+                if isinstance(missing, list)
+                else [str(missing).strip()]
+            )
+    except Exception:
+        o["idea"] = o.get("title", "")
+        for field in EVIDENCE_FIELDS:
+            o[field] = "未知"
+        o["missing_evidence"] = ["证据提取调用失败"]
+    o["demand_evidence"] = _evidence_summary(o)
