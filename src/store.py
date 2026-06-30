@@ -121,6 +121,10 @@ def load_day(day: str | None = None, *, include_demo: bool = False) -> list[dict
 
 
 def get(item_id_: str) -> dict | None:
+    # 绝大多数详情/深挖来自今日榜单，先用一次 KV 请求命中，避免扫描全部历史。
+    for o in load_day() or []:
+        if o.get("id") == item_id_:
+            return o
     for o in load_flat():
         if o.get("id") == item_id_:
             return o

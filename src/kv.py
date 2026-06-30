@@ -60,6 +60,28 @@ def smembers(key: str) -> list[str]:
     return command("SMEMBERS", _key(key)) or []
 
 
+def append_json(key: str, value, *, max_items: int = 200, ex: int | None = None) -> None:
+    """向 JSON 日志列表追加一条并限制长度；供 serverless 对话日志使用。"""
+    script = (
+        "redis.call('rpush', KEYS[1], ARGV[1]); "
+        "redis.call('ltrim', KEYS[1], -tonumber(ARGV[2]), -1); "
+        "if tonumber(ARGV[3]) > 0 then redis.call('expire', KEYS[1], ARGV[3]); end; "
+        "return 1"
+    )
+    command("EVAL", script, 1, _key(key), json.dumps(value, ensure_ascii=False),
+            int(max_items), int(ex or 0))
+
+
+def list_json(key: str, start: int = 0, end: int = -1) -> list:
+    out = []
+    for raw in command("LRANGE", _key(key), start, end) or []:
+        try:
+            out.append(json.loads(raw))
+        except (TypeError, json.JSONDecodeError):
+            continue
+    return out
+
+
 def acquire_lock(name: str, owner: str, ttl: int = 3600) -> bool:
     """跨进程互斥锁；防 GitHub / 本机 / 手动任务同时覆盖历史。"""
     return set_json(f"lock:{name}", owner, ex=ttl, nx=True)

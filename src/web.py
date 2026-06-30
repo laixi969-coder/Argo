@@ -952,11 +952,13 @@ async function argoAsk(){{
  try{{
   const r=await fetch('/api/chat',{{method:'POST',headers:{{'Content-Type':'application/json'}},
    body:JSON.stringify({{text:t,item_id:ARGO_ID}})}});
-  const d=await r.json();
+  const raw=await r.text(); let d={{}};
+  try{{d=raw?JSON.parse(raw):{{}};}}catch(_e){{d={{}};}}
   sk.classList.remove('loading');
-  if(d.reply){{sk.innerHTML=d.reply.replace(/[<>&]/g,m=>({{'<':'&lt;','>':'&gt;','&':'&amp;'}}[m]));}}
-  else{{sk.innerHTML='出错了：'+(d.error||'未知');}}
- }}catch(e){{sk.classList.remove('loading');sk.innerHTML='网络错误';}}
+  if(!r.ok){{sk.textContent=d.error||('服务暂时不可用（HTTP '+r.status+'），请稍后重试');}}
+  else if(d.reply){{sk.textContent=d.reply;}}
+  else{{sk.textContent=d.error||'服务返回了空结果，请重试';}}
+ }}catch(e){{sk.classList.remove('loading');sk.textContent='网络连接失败，请检查网络后重试';}}
  b.disabled=false; b.textContent='追问'; log.scrollTop=log.scrollHeight;
 }}
 </script>"""
@@ -1290,7 +1292,10 @@ def route(method: str, raw_path: str, body: bytes, headers: dict) -> tuple[int, 
             return 400, J, json.dumps({"error": "缺 text"})
         text = _with_opp_context(text, data.get("item_id"))
         uid = user["id"] if user else data.get("user_id", "api")
-        reply = agent.handle_message(text, user_id=uid)
+        try:
+            reply = agent.handle_message(text, user_id=uid)
+        except Exception:
+            return 503, J, json.dumps({"error": "对话服务暂时不可用，请稍后重试"}, ensure_ascii=False)
         return 200, J, json.dumps({"reply": reply}, ensure_ascii=False)
     if method == "GET" and not path.startswith("/api/"):
         return 404, H, _page("金羊毛 Argo · 404",

@@ -67,4 +67,34 @@ def test_handle_message_catches_errors(tmp_path, monkeypatch):
     monkeypatch.setattr(agent.llm, "chat_llm", boom)
     agent._sessions.clear()
     out = agent.handle_message("聊聊", user_id="u1")
-    assert "出错了" in out  # 不抛，返回人话
+    assert "暂时不可用" in out  # 不抛、不泄露底层异常，返回人话
+
+
+def test_handle_message_survives_log_storage_failure(monkeypatch):
+    """Vercel 文件系统不可写时，日志失败不能拖垮聊天主链路。"""
+    monkeypatch.setattr(agent, "log_turn", lambda *a, **k: (_ for _ in ()).throw(OSError("read-only")))
+    monkeypatch.setattr(agent.llm, "chat_llm", lambda messages: "回答正常")
+    monkeypatch.setattr(agent, "load_report", lambda: "1. 测试机会")
+    agent._sessions.clear()
+
+    assert agent.handle_message("测试问题", user_id="u1") == "回答正常"
+
+
+def test_cloud_chat_recovers_history_and_logs_by_user(monkeypatch):
+    logged, captured = [], {}
+    monkeypatch.setattr(agent.kv, "enabled", lambda: True)
+    monkeypatch.setattr(agent.kv, "list_json", lambda *a, **k: [
+        {"role": "user", "text": "上一问"}, {"role": "assistant", "text": "上一答"}
+    ])
+    monkeypatch.setattr(agent.kv, "append_json", lambda key, value, **k: logged.append((key, value)))
+    monkeypatch.setattr(agent, "load_report", lambda: "1. 测试机会")
+    def fake_chat(messages):
+        captured["messages"] = messages
+        return "新回答"
+
+    monkeypatch.setattr(agent.llm, "chat_llm", fake_chat)
+
+    assert agent.handle_message("新问题", user_id="user-a") == "新回答"
+    messages = captured["messages"]
+    assert [m["content"] for m in messages[-3:]] == ["上一问", "上一答", "新问题"]
+    assert len(logged) == 2 and logged[0][0] == logged[1][0]

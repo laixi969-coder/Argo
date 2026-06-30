@@ -7,6 +7,7 @@
 按 user_id 隔离（每人一个 data/<user_id>/ 目录）即可，handle_message 的契约不变。
 """
 import json
+import hashlib
 from pathlib import Path
 from src import clock, kv, llm, store, bot_admin as admin
 
@@ -36,13 +37,49 @@ def load_report() -> str:
 
 
 def log_turn(user_id: str, role: str, text: str) -> None:
+    entry = {"t": clock.now().isoformat(), "user": user_id,
+             "role": role, "text": text}
+    if kv.enabled():
+        # 用户 id 哈希后分桶，避免把任意输入直接拼进 KV key；保留最近 100 轮一年。
+        kv.append_json(_chat_key(user_id), entry, max_items=200, ex=365 * 24 * 60 * 60)
+        return
     DATA.mkdir(exist_ok=True)
     with CHAT_LOG.open("a") as f:
-        f.write(json.dumps({"t": clock.now().isoformat(), "user": user_id,
-                            "role": role, "text": text}, ensure_ascii=False) + "\n")
+        f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+
+def _chat_key(user_id: str) -> str:
+    digest = hashlib.sha256(str(user_id).encode()).hexdigest()[:24]
+    return f"chat:{digest}"
+
+
+def _recent_cloud_history(user_id: str) -> list[dict]:
+    if not kv.enabled():
+        return []
+    entries = kv.list_json(_chat_key(user_id), -12, -1)
+    return [
+        {"role": e["role"], "content": e["text"]}
+        for e in entries
+        if e.get("role") in {"user", "assistant"} and isinstance(e.get("text"), str)
+    ]
+
+
+def _safe_log_turn(user_id: str, role: str, text: str) -> None:
+    """日志是旁路能力，任何存储故障都不能拖垮聊天主链路。"""
+    try:
+        log_turn(user_id, role, text)
+    except Exception:
+        pass
 
 
 def discuss(user_id: str, user_text: str) -> str:
+    if kv.enabled():
+        messages = [
+            {"role": "system", "content": f"{SYSTEM}\n\n今日榜单：\n{load_report()}"},
+            *_recent_cloud_history(user_id),
+            {"role": "user", "content": user_text},
+        ]
+        return llm.chat_llm(messages)
     history = _sessions.setdefault(user_id, [])
     history.append({"role": "user", "content": user_text})
     del history[:-12]  # 只留最近 6 轮，控制 token
@@ -58,10 +95,11 @@ def discuss(user_id: str, user_text: str) -> str:
 
 def handle_message(text: str, user_id: str = "me") -> str:
     """渠道无关的统一入口：命令走后台，其余走机会探讨。出错不抛，返回人话。"""
-    log_turn(user_id, "user", text)
     try:
         reply = admin.handle(text) if admin.is_command(text) else discuss(user_id, text)
     except Exception as e:
-        reply = f"（出错了：{e}）"
-    log_turn(user_id, "assistant", reply)
+        print(f"[warn] 对话失败：{type(e).__name__}: {e}")
+        reply = "（对话服务响应超时或暂时不可用，请稍后重试。）"
+    _safe_log_turn(user_id, "user", text)
+    _safe_log_turn(user_id, "assistant", reply)
     return reply

@@ -101,3 +101,14 @@ def test_lock_release_is_owner_safe(monkeypatch):
     args = calls[0]
     assert args[0] == "EVAL" and "redis.call('get'" in args[1]
     assert args[-1] == json.dumps("owner-1")
+
+
+def test_json_log_list_roundtrip_commands(monkeypatch):
+    calls = []
+    monkeypatch.setattr(kv, "command", lambda *args: calls.append(args) or ([] if args[0] == "LRANGE" else 1))
+    kv.append_json("chat:u", {"role": "user", "text": "hi"}, max_items=20, ex=60)
+    assert [c[0] for c in calls] == ["EVAL"]
+    assert json.loads(calls[0][4])["text"] == "hi"
+
+    monkeypatch.setattr(kv, "command", lambda *args: ['{"role":"user","text":"hi"}', "bad-json"])
+    assert kv.list_json("chat:u") == [{"role": "user", "text": "hi"}]

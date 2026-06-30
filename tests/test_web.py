@@ -162,6 +162,25 @@ def test_detail_blocks_non_http_source_url(tmp_path, monkeypatch):
     assert 'href="#"' in body and "javascript:" not in body
 
 
+def test_chat_ui_surfaces_http_error_instead_of_fake_network_error():
+    _, _, body = web.route("GET", "/app", b"", {})
+    # 详情组件的脚本由 _deepdive 生成，直接检查生成结果。
+    web._req_user.set({"id": "u1", "email": "a@b.com", "plan": "free"})
+    script = web._deepdive({"id": "item-1"})
+    assert "服务暂时不可用" in script
+    assert "网络连接失败" in script
+
+
+def test_chat_api_returns_json_503_for_unexpected_agent_failure(monkeypatch):
+    monkeypatch.setattr(web.config, "get", lambda k, d=None: "tok" if k == "ARGO_API_TOKEN" else "")
+    monkeypatch.setattr(web.agent, "handle_message", lambda *a, **k: (_ for _ in ()).throw(OSError("boom")))
+    status, ctype, body = web.route(
+        "POST", "/api/chat", json.dumps({"text": "hi"}).encode(), {"x-argo-token": "tok"}
+    )
+    assert status == 503 and "json" in ctype
+    assert json.loads(body)["error"] == "对话服务暂时不可用，请稍后重试"
+
+
 def test_vercel_cookie_is_always_secure(monkeypatch):
     monkeypatch.setenv("VERCEL", "1")
     monkeypatch.setattr(web.config, "get", lambda k, d=None: d)

@@ -23,3 +23,11 @@ def test_empty_override_falls_through(tmp_path, monkeypatch):
     config.set_override("LLM_MODEL", "")          # 空值不算覆盖
     monkeypatch.setenv("LLM_MODEL", "env-val")
     assert config.get("LLM_MODEL") == "env-val"
+
+
+def test_get_many_reads_remote_overrides_once(monkeypatch):
+    calls = []
+    monkeypatch.setattr(config, "_overrides", lambda: calls.append(1) or {"A": "remote-a"})
+    monkeypatch.setenv("B", "env-b")
+    assert config.get_many("A", "B") == {"A": "remote-a", "B": "env-b"}
+    assert calls == [1]

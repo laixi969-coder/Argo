@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import os
 from pathlib import Path
@@ -24,6 +26,15 @@ def get(key, default=None):
     if overrides.get(key):
         return overrides[key]
     return os.environ.get(key, default)
+
+
+def get_many(*keys: str) -> dict[str, str | None]:
+    """一次读取 KV 覆盖后解析多个配置，避免一个 LLM 请求重复远程取配置。"""
+    overrides = _overrides()
+    return {
+        key: overrides.get(key) or os.environ.get(key)
+        for key in keys
+    }
 
 
 def _overrides():
