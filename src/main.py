@@ -4,11 +4,12 @@ import secrets
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from src.sources import hackernews, producthunt, reddit_comments_tikhub, reddit_tikhub, tikhub
+from src.sources import hackernews, producthunt, reddit, reddit_comments_tikhub, reddit_tikhub, tikhub
 from src import config, dedup, email_report, extract, kv, prefilter, rank, score, store, telegram_report
 
 
 SOURCES = {
+    "reddit": reddit.fetch,  # 直连源，用现成 REDDIT_CLIENT key，抓交易型子版
     "reddit_tikhub": reddit_tikhub.fetch,
     "reddit_comments_tikhub": reddit_comments_tikhub.fetch,
     "producthunt": producthunt.fetch,

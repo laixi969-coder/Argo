@@ -1,7 +1,10 @@
 import requests
 from src import config
 
-SUBS = ["SomebodyMakeThis", "Entrepreneur", "AppIdeas"]
+# 交易型社区：人们在这里掏钱/雇人/求购，帖子自带真实支付意愿证据，
+# 比纯讨论场(原 Entrepreneur/AppIdeas)更容易过真需求闸门。
+# forhire/slavelabour=有预算的招人&付费小活；SomebodyMakeThis/SaaS=带掏钱意向的产品求购。
+SUBS = ["forhire", "slavelabour", "SomebodyMakeThis", "SaaS", "microsaas"]
 
 def _token():
     if not config.get("REDDIT_CLIENT_ID") or not config.get("REDDIT_CLIENT_SECRET"):
