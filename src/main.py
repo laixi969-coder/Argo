@@ -1,10 +1,11 @@
 import json
 import os
+import secrets
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from src.sources import hackernews, producthunt, reddit_comments_tikhub, reddit_tikhub, tikhub
-from src import config, dedup, email_report, extract, prefilter, rank, score, store, telegram_report
+from src import config, dedup, email_report, extract, kv, prefilter, rank, score, store, telegram_report
 
 
 SOURCES = {
@@ -45,7 +46,7 @@ def _fetch_one(item):
         return name, [], exc
 
 
-def run():
+def _run_unlocked():
     opps, missing = [], []
     # 各源互不依赖，并行抓取；总耗时 = 最慢的源，而非各源相加
     with ThreadPoolExecutor(max_workers=len(SOURCES)) as pool:
@@ -60,7 +61,7 @@ def run():
     if not opps:
         _save([])
         _deliver([], list(SOURCES))
-        return
+        raise RuntimeError("所有数据源均无可用结果，拒绝把本次运行标记为成功")
     print(f"[漏斗] 抓取合计 {len(opps)}")
     top = prefilter.prefilter(opps, n=60)
     print(f"[漏斗] 源公平粗筛 → {len(top)}")
@@ -81,6 +82,20 @@ def run():
     except Exception as exc:  # 发送失败不算流水线失败：结果已存网站，下次再推
         print(f"[warn] 发送失败（结果已存网站）: {exc}")
     print(f"[ok] 保存 {len(final)} 条机会，缺源 {missing}")
+
+
+def run():
+    owner = secrets.token_hex(16)
+    locked = False
+    if kv.enabled():
+        locked = kv.acquire_lock("daily-pipeline", owner, ttl=3600)
+        if not locked:
+            raise RuntimeError("已有一班 Argo 流水线正在运行，拒绝并发覆盖历史")
+    try:
+        return _run_unlocked()
+    finally:
+        if locked:
+            kv.release_lock("daily-pipeline", owner)
 
 
 if __name__ == "__main__":

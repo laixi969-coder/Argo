@@ -60,6 +60,21 @@ def smembers(key: str) -> list[str]:
     return command("SMEMBERS", _key(key)) or []
 
 
+def acquire_lock(name: str, owner: str, ttl: int = 3600) -> bool:
+    """跨进程互斥锁；防 GitHub / 本机 / 手动任务同时覆盖历史。"""
+    return set_json(f"lock:{name}", owner, ex=ttl, nx=True)
+
+
+def release_lock(name: str, owner: str) -> bool:
+    """只释放自己持有的锁，避免旧任务误删新任务的锁。"""
+    script = (
+        "if redis.call('get', KEYS[1]) == ARGV[1] then "
+        "return redis.call('del', KEYS[1]) else return 0 end"
+    )
+    encoded_owner = json.dumps(owner, ensure_ascii=False)
+    return bool(command("EVAL", script, 1, _key(f"lock:{name}"), encoded_owner))
+
+
 def command(*args):
     if not enabled():
         raise RuntimeError("Upstash Redis 未配置")

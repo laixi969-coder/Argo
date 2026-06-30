@@ -1,4 +1,5 @@
 import json
+import pytest
 from src import main
 
 
@@ -51,6 +52,25 @@ def test_run_all_sources_dead_sends_empty(monkeypatch, tmp_path):
     def boom():
         raise RuntimeError("全挂")
     sent, seen = _wire(monkeypatch, tmp_path, {"producthunt": boom})
-    main.run()
+    with pytest.raises(RuntimeError, match="所有数据源"):
+        main.run()
     assert sent["final"] == []              # 无机会也推一条（标注缺源）
     assert "producthunt" in sent["missing"]
+
+
+def test_run_rejects_concurrent_cloud_pipeline(monkeypatch):
+    monkeypatch.setattr(main.kv, "enabled", lambda: True)
+    monkeypatch.setattr(main.kv, "acquire_lock", lambda *a, **k: False)
+    with pytest.raises(RuntimeError, match="并发覆盖"):
+        main.run()
+
+
+def test_run_releases_cloud_lock_on_failure(monkeypatch):
+    released = []
+    monkeypatch.setattr(main.kv, "enabled", lambda: True)
+    monkeypatch.setattr(main.kv, "acquire_lock", lambda *a, **k: True)
+    monkeypatch.setattr(main.kv, "release_lock", lambda name, owner: released.append((name, owner)))
+    monkeypatch.setattr(main, "_run_unlocked", lambda: (_ for _ in ()).throw(RuntimeError("boom")))
+    with pytest.raises(RuntimeError, match="boom"):
+        main.run()
+    assert released and released[0][0] == "daily-pipeline"

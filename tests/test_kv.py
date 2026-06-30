@@ -33,7 +33,7 @@ def test_account_data_uses_kv_when_configured(monkeypatch):
     assert saved.toggle(user["id"], "item-1") is True
     assert saved.list_ids(user["id"]) == ["item-1"]
     assert plans.use_chat(user) is True
-    assert data[f"quota:{user['id']}:" + __import__("time").strftime("%Y%m%d")]["chat"] == 1
+    assert data[f"quota:{user['id']}:" + plans.clock.today_iso().replace("-", "")]["chat"] == 1
 
 
 def test_throttle_uses_kv(monkeypatch):
@@ -91,3 +91,13 @@ def test_vercel_marketplace_variable_names(monkeypatch):
     monkeypatch.setenv("KV_REST_API_URL", "https://redis.example")
     monkeypatch.setenv("KV_REST_API_TOKEN", "token")
     assert kv.enabled() is True
+
+
+def test_lock_release_is_owner_safe(monkeypatch):
+    calls = []
+    monkeypatch.setattr(kv, "command", lambda *args: calls.append(args) or 1)
+
+    assert kv.release_lock("daily-pipeline", "owner-1") is True
+    args = calls[0]
+    assert args[0] == "EVAL" and "redis.call('get'" in args[1]
+    assert args[-1] == json.dumps("owner-1")

@@ -17,3 +17,12 @@ def test_render_has_followup_hint():
     opps = [{"idea": "x", "verdict": "真需求", "score": 70,
              "reason": "r", "url": "http://x", "source": "reddit"}]
     assert "第 N 条" in render(opps, [])
+
+
+def test_render_blocks_malicious_source_url():
+    text = render([{
+        "idea": "x", "verdict": "待验证", "score": 50, "reason": "r",
+        "url": 'javascript:alert(1)\" onclick=\"steal()', "source": "reddit",
+    }], [])
+    assert "javascript:" not in text and "onclick=" not in text
+    assert 'href="#"' in text

@@ -1,12 +1,13 @@
-name: Argo 每日选品扫描
+name: Argo 每日选品扫描（旧版·仅手动）
 
-# 北京时间 7:00 / 13:00 / 19:00（GitHub 用 UTC，对应 23:00 / 05:00 / 11:00）
+# 旧版定时已停用：避免与 daily.yml 重复运行、互相覆盖同一天的榜单。
+# 保留 workflow_dispatch 仅供历史排障；正式定时统一由 daily.yml 管理。
 on:
-  schedule:
-    - cron: "0 23 * * *"
-    - cron: "0 5 * * *"
-    - cron: "0 11 * * *"
-  workflow_dispatch: {}   # 允许在 GitHub 网页上手动点一下立即跑
+  workflow_dispatch: {}
+
+concurrency:
+  group: argo-daily-pipeline
+  cancel-in-progress: false
 
 jobs:
   scan:

@@ -1,17 +1,16 @@
-"""会员分层 + 功能门控 + 配额。
+"""历史会员字段兼容层。
 
-产品形态：每日机会流是共享内容；付费解锁「深挖对话」「完整榜单」「更多来源」。
-计费：真实支付（Stripe）接口位留在 billing 里，这里只定义计划与权益。
+当前所有注册用户均免费访问完整榜单与不限次深挖；这些定义仅用于兼容旧账号数据，
+不再参与 Web/API 门控。
 """
 from __future__ import annotations
 import json
-import time
 from pathlib import Path
-from src import kv
+from src import clock, kv
 
 QUOTA_DIR = Path(__file__).resolve().parent.parent / "data" / "quota"
 
-# 计划定义：权益 + 价格（分/月）。免费可看摘要，付费解锁深挖与完整内容。
+# 旧账号可能仍带 free/pro 字段；两者当前权益完全相同。
 PLANS = {
     "free": {
         "name": "免费版", "price_cny": 0,
@@ -45,7 +44,7 @@ def history_days(user: dict | None) -> int:
 
 
 def _quota_path(uid: str) -> Path:
-    return QUOTA_DIR / f"{uid}-{time.strftime('%Y%m%d')}.json"
+    return QUOTA_DIR / f"{uid}-{clock.today_iso().replace('-', '')}.json"
 
 
 def chat_remaining(user: dict | None) -> int:
@@ -83,4 +82,4 @@ def _used(uid: str) -> int:
 
 
 def _quota_key(uid: str) -> str:
-    return f"quota:{uid}:{time.strftime('%Y%m%d')}"
+    return f"quota:{uid}:{clock.today_iso().replace('-', '')}"

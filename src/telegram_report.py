@@ -35,7 +35,7 @@ def render(opps: list[dict], missing_sources: list[str]) -> str:
         body = "\n\n".join(
             f"<b>{i + 1}. {esc(o['idea'])}</b>\n"
             f"{esc(o['verdict'])} · {int(o['score'])}分 · "
-            f"<a href=\"{esc(o['url'])}\">{esc(_label(o['source']))}</a>"
+            f"<a href=\"{telegram.attr(telegram.safe_url(o.get('url', '')))}\">{esc(_label(o['source']))}</a>"
             f"{_edge(o)}\n"
             f"{esc(o['reason'])}"
             for i, o in enumerate(opps)

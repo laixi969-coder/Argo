@@ -5,10 +5,10 @@
 - mark_seen: 推送成功后才登记，失败不抑制次日。
 """
 import json
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 
-from src import kv
+from src import clock, kv
 
 SEEN = Path(__file__).resolve().parent.parent / "data" / "seen.json"
 KV_KEY = "seen"
@@ -40,7 +40,7 @@ def _save(seen: dict) -> None:
 
 def _is_recent(iso: str) -> bool:
     try:
-        return datetime.fromisoformat(iso).date() > date.today() - timedelta(days=TTL_DAYS)
+        return datetime.fromisoformat(iso).date() > clock.now().date() - timedelta(days=TTL_DAYS)
     except Exception:
         return False
 
@@ -59,7 +59,7 @@ def filter_fresh(opps: list[dict], min_keep: int = 15) -> list[dict]:
 
 def mark_seen(opps: list[dict]) -> None:
     seen = _load()
-    today = date.today().isoformat()
+    today = clock.today_iso()
     for o in opps:
         if o.get("url"):
             seen[o["url"]] = today

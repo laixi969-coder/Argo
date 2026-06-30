@@ -26,6 +26,13 @@ def attr(text: str) -> str:
     return html.escape(str(text), quote=True)
 
 
+def safe_url(value: str) -> str:
+    """只允许可点击的 HTTP(S) 外链，拒绝 javascript/data 等危险协议。"""
+    value = str(value or "").strip()
+    parts = urllib.parse.urlsplit(value)
+    return value if parts.scheme in {"http", "https"} and parts.netloc else "#"
+
+
 def _call(method: str, params: dict, timeout: int = 35) -> dict:
     token = config.get("TELEGRAM_BOT_TOKEN")
     if not token:

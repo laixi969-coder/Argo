@@ -6,10 +6,10 @@
 ## 1. 数据流（一张图看懂）
 
 ```
-GitHub Actions（每天 07:00 / 17:00 北京）
+GitHub Actions（每天 07:00 / 13:00 / 19:00 北京，仅 daily.yml）
    → python -m src.main
-       → 4 个源抓取：reddit_tikhub · twitter_tikhub · producthunt · tikhub(TikTok)
-       → prefilter(30) → dedup(去重已见) → extract(LLM出中文机会) → score(/req真需求打分) → rank(20)
+       → 5 个源抓取：reddit_tikhub · reddit_comments_tikhub · producthunt · hackernews · tikhub(TikTok)
+       → prefilter(60) → dedup(去重已见) → extract(LLM出中文机会) → score(/req真需求打分) → rank(20)
        → store.append → 写入 Upstash KV（history:{日期} + history:days 索引）
    Vercel 站点(argo-woad.vercel.app) 每次访问实时读 KV → 渲染机会卡片
 ```
@@ -17,6 +17,8 @@ GitHub Actions（每天 07:00 / 17:00 北京）
 要点：
 - **跑流水线的是 GitHub Actions，不是 Vercel**。Vercel 只当"网站门面"，被动读 KV。
 - **数据更新不需要重新部署 Vercel**：KV 一变，下次刷新页面就是新的。
+- 每天三班扫描写入同一个 `history:YYYY-MM-DD`，按机会 ID 去重合并；后跑班次不得覆盖早班历史，空榜不得擦除已有结果。
+- 所有“今天”统一按 `Asia/Shanghai` 计算；`history:days` 是日期索引，具体快照永久保留且不设 TTL。
 
 ## 2. 配置都在哪
 
@@ -33,7 +35,7 @@ GitHub Actions（每天 07:00 / 17:00 北京）
 ## 3. 常见改动怎么做
 
 - **换 LLM 模型/中转站**：线上「舰长设置」改 Base URL / API Key / Model，保存即写 KV，下次跑自动生效。当前用 Agnes `agnes-2.0-flash`（`https://apihub.agnes-ai.com/v1`）。
-- **改更新频率/时间**：编辑 `daily.yml` 的 `cron`（UTC 时间，北京=UTC+8）。现为 `0 23 * * *`(07:00) + `0 9 * * *`(17:00)。
+- **改更新频率/时间**：编辑 `daily.yml` 的 `cron`（UTC 时间，北京=UTC+8）。现为 `0 23 * * *`(07:00) + `0 5 * * *`(13:00) + `0 11 * * *`(19:00)。`argo-daily.yml` 是已停用定时的旧版手动排障入口，不得再加 schedule。
 - **加平台（如 YouTube）**：照 `reddit_tikhub.py` / `twitter_tikhub.py` 的套路，查 TikHub openapi 找搜索接口 → 写 `xxx_tikhub.py` 归一化为 `{source,title,raw_text,url,signal}` → 在 `src/main.py` 的 `SOURCES` 注册 → 加解析单测。
 - **调词库 / 每次条数**：`demand_keywords.py`（搜索短语）、各源 `_PER_KEYWORD`（每词抓几条）、`main.run` 里 `rank.rank(n=20)`（最终上限）。
 - **手动立刻跑一次**：GitHub → Actions → "Argo 每日机会流水线" → Run workflow。
@@ -54,6 +56,7 @@ GitHub Actions（每天 07:00 / 17:00 北京）
 4. **读 cookie 用 `headers.get("Cookie")` 大写**，Vercel WSGI 头是全小写 → 线上永远取不到会话。**修复**：大小写双查。
 5. **超管邮箱精确比较**，账号邮箱存储时已 `strip().lower()`，环境变量带空格/大小写就匹配不上 → 看不到"舰长设置"。**修复**：比较前两侧统一 `strip().lower()`。
 6. **🔥 测试污染生产 KV**：本地 `.env` 含生产 KV 凭据时跑 `pytest`，`store.append` 因 `kv.enabled()` 为真把测试假数据写进生产，冲掉真实机会；`test_admin` 还把 `LLM_BASE_URL` 覆盖成假值 `https://new/v1` 致 LLM 全调不通。**修复**：`tests/conftest.py` 在导入 `src` 前置空 KV 环境变量，测试恒走文件存储。**教训：任何会写存储的测试，必须保证测试环境与生产隔离。**
+   - `src.demo` 也必须只写 `data/demo/`，严禁调用 `store.append`；生产读取会过滤 `example.com` 演示夹具，流水线收尾还会运行 `src.verify_daily` 阻止污染上线。
 7. **打分/中文全失效的连环**：上条把 LLM Base URL 写坏 + 这台 Mac 连不上 deepseek（代理）→ `extract`/`score` 的 LLM 调用全失败 → 兜底：idea 退回英文原文、score 退回信号值(常为100)。**根因永远先查 LLM 是否真的通**。
 8. **config 读 KV 不容错**：KV 瞬时抽风时 `config.get` 抛错 → 数据源连环失败、来源失衡。**修复**：`_overrides` 读 KV 失败回退环境变量。
 9. **Twitter 搜索松散匹配**：多词短语被拆词，捞回无关爆款。**修复**：关键词加引号强制精确短语 + `search_type=Latest`。

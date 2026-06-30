@@ -112,6 +112,16 @@ def test_daily_page():
     assert status == 200 and "AI 日报" in body and "发票工具" in body
 
 
+def test_daily_api_never_labels_yesterday_as_today(monkeypatch):
+    monkeypatch.setattr(web.store, "load_day", lambda day: None)
+    monkeypatch.setattr(web.clock, "today_iso", lambda: "2026-06-30")
+
+    _, _, body = web.route("GET", "/api/daily", b"", {})
+    payload = json.loads(body)
+
+    assert payload == {"date": "2026-06-30", "count": 0, "opportunities": []}
+
+
 def test_feedback_page():
     status, _, body = web.route("GET", "/feedback", b"", {})
     assert status == 200 and "反馈" in body
@@ -137,6 +147,25 @@ def test_attr_escaping_blocks_injection(tmp_path, monkeypatch):
     # 搜索框 value 注入
     _, _, b2 = web.route("GET", "/all?q=%22%3E%3Cscript%3E", b"", {})
     assert '"><script>' not in b2
+
+
+def test_detail_blocks_non_http_source_url(tmp_path, monkeypatch):
+    monkeypatch.setattr(store, "HISTORY", tmp_path / "h3")
+    monkeypatch.setattr(store, "LATEST", tmp_path / "l3.json")
+    from datetime import date as _d
+    evil = "javascript:alert(1)"
+    store.append([{"idea": "i", "verdict": "待验证", "score": 50, "reason": "r",
+                   "url": evil, "source": "s", "category": "AI应用"}],
+                 day=_d.today().isoformat())
+    iid = store.item_id({"url": evil})
+    _, _, body = web.route("GET", f"/items/{iid}", b"", {})
+    assert 'href="#"' in body and "javascript:" not in body
+
+
+def test_vercel_cookie_is_always_secure(monkeypatch):
+    monkeypatch.setenv("VERCEL", "1")
+    monkeypatch.setattr(web.config, "get", lambda k, d=None: d)
+    assert web._secure() is True
 
 
 def test_unknown_route_404():

@@ -4,9 +4,8 @@
 将来这些反馈可反哺真需求判断（越用越准，后来者抄不走）。
 """
 import json
-from datetime import datetime
 from pathlib import Path
-from src import config  # noqa: F401  保持与其他模块一致的依赖根
+from src import clock, config, kv, store
 
 DATA = Path(__file__).resolve().parent.parent / "data"
 REPORT = DATA / "latest_report.json"
@@ -14,6 +13,8 @@ FEEDBACK = DATA / "feedback.jsonl"
 
 
 def _report() -> list[dict]:
+    if kv.enabled():
+        return store.load_day(clock.today_iso()) or []
     if not REPORT.exists():
         return []
     try:
@@ -30,7 +31,7 @@ def record(idx: int, label: str, note: str = "", user_id: str = "me") -> str:
     DATA.mkdir(exist_ok=True)
     with FEEDBACK.open("a") as f:
         f.write(json.dumps({
-            "t": datetime.now().isoformat(), "user": user_id, "label": label,
+            "t": clock.now().isoformat(), "user": user_id, "label": label,
             "idx": idx, "idea": o.get("idea"), "url": o.get("url"),
             "verdict": o.get("verdict"), "score": o.get("score"), "note": note,
         }, ensure_ascii=False) + "\n")

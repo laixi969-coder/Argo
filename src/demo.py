@@ -6,13 +6,15 @@
 跑：python3 -m src.demo
 """
 import json
-from datetime import date, timedelta
+from datetime import timedelta
 from pathlib import Path
-from src import prefilter, rank, telegram_report, store
+from src import clock, prefilter, rank, telegram_report, store
 from src.extract import extract_ideas
 from src.score import score_real_demand
 
-REPORT = Path(__file__).resolve().parent.parent / "data" / "latest_report.json"
+DEMO_DATA = Path(__file__).resolve().parent.parent / "data" / "demo"
+REPORT = DEMO_DATA / "latest_report.json"
+HISTORY = DEMO_DATA / "history"
 
 # (来源, 标题, 信号, 提炼后的机会, 分, 判定, 分类)
 _FAKE = [
@@ -71,12 +73,14 @@ def _build_day() -> list[dict]:
 
 def run_demo() -> str:
     final = _build_day()
-    REPORT.parent.mkdir(exist_ok=True)
+    REPORT.parent.mkdir(parents=True, exist_ok=True)
     REPORT.write_text(json.dumps(final, ensure_ascii=False))
-    # 种 3 天历史，让 Web 的日期分组 / 分页有内容
+    HISTORY.mkdir(parents=True, exist_ok=True)
+    # 只写 data/demo，绝不经过 store.append（它可能连接生产 KV）。
     for d in range(3):
-        day = (date.today() - timedelta(days=d)).isoformat()
-        store.append(final, day=day)
+        day = (clock.now().date() - timedelta(days=d)).isoformat()
+        enriched = [dict(o, id=store.item_id(o), date=day, _demo=True) for o in final]
+        (HISTORY / f"{day}.json").write_text(json.dumps(enriched, ensure_ascii=False))
     return telegram_report.render(final, missing_sources=[])
 
 
@@ -86,4 +90,4 @@ if __name__ == "__main__":
     print("=" * 60)
     print(run_demo())
     print("=" * 60)
-    print(f"[ok] 已写 {REPORT} + 3 天历史（data/history/），可预览 Web")
+    print(f"[ok] 已写 {REPORT} + 3 天演示历史（data/demo/history/），未触碰生产数据")

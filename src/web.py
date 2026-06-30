@@ -13,13 +13,15 @@ Agent / IM 客户端：
 """
 from __future__ import annotations
 import contextvars
+import hmac
 import json
+import os
 import time
 import urllib.parse
 from datetime import date
 from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from src import config, agent, telegram, store, auth, users, plans, billing, saved, mailer, admin, kv
+from src import clock, config, agent, telegram, store, auth, users, plans, billing, saved, mailer, admin, kv
 
 STATIC = Path(__file__).resolve().parent.parent / "static"
 _req_user: contextvars.ContextVar = contextvars.ContextVar("req_user", default=None)
@@ -611,8 +613,8 @@ def _toolbar(cur_cat: str, q: str) -> str:
         f'class="{"on" if c == cur_cat else ""}">{c}</a>' for c in CATS)
     return f"""<div class=toolbar><div class=tabs>{tabs}</div>
 <form class=search action="/all" method=get>
-<input name=q value="{aesc(q)}" placeholder="搜索机会 / 理由 / 来源…">
-<button>搜索</button></form></div>"""
+<input name=q value="{aesc(q)}" aria-label="搜索机会" placeholder="搜索机会 / 理由 / 来源…">
+<button type=submit>搜索</button></form></div>"""
 
 
 _DESC = "金羊毛 Argo：每天扫描公开源，筛出有人在痛、有人愿掏钱的产品机会，给出痛点、谁买单、变现路径与切入点。"
@@ -843,7 +845,9 @@ def _featured(welcome: bool = False) -> str:
     day, opps = days[0]
     ranked = sorted(opps, key=lambda x: x.get("score", 0), reverse=True)
     body = (head + f'<h2 class=daygrp>{esc(day)} {_weekday(day)} · {len(opps)} 条</h2>'
-            + _feed(ranked))
+            + (_feed(ranked) if ranked else
+               '<div class=empty><b>今天暂时没有通过真需求筛选的新机会</b>'
+               '雷达已按计划更新，下一次扫描会继续补充。</div>'))
     return _page("金羊毛 Argo · 精选", body, "/")
 
 
@@ -854,7 +858,7 @@ def _all(query: dict) -> str:
         page = max(1, int(query.get("page", ["1"])[0]))
     except ValueError:
         page = 1
-    # 会员门控：只看可见集（最近 N 天 × 每天前 feed_limit 条）
+    # 当前免费形态：所有用户都能浏览完整历史。
     acc = _accessible_ids(_req_user.get())
     flat = [o for o in store.load_flat() if o.get("id", "") in acc]
     if cat != "全部":
@@ -891,7 +895,8 @@ def _detail(item_id: str) -> tuple[int, str]:
     o = store.get(item_id)
     if not o:
         return 404, _page("未找到", '<a class=back href="/all"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 2px;"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>返回</a><div class=empty><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><b>没有这条机会</b>可能已被移除或 ID 有误</div>', "")
-    domain = urllib.parse.urlsplit(o.get("url", "")).netloc or "原文"
+    safe_link = telegram.safe_url(o.get("url", ""))
+    domain = urllib.parse.urlsplit(safe_link).netloc or "原文"
     tags = "".join(f'<span class=tag>{esc(t)}</span>' for t in [o.get("category", "未分类")])
     body = f"""<div class=dtop><a class=back href="/all"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 2px;"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>返回</a>{_save_btn(o)}</div>
 <div class=dhead style="margin-top:18px">{esc(o.get('source',''))} · {esc(o.get('date',''))}
@@ -899,7 +904,7 @@ def _detail(item_id: str) -> tuple[int, str]:
 &nbsp;&nbsp;<span style="color:var(--gold); font-weight: 700; font-family: var(--font-mono)">精选 {int(o.get('score',0))}</span></div>
 <h2 class=dttl>{esc(o.get('idea',''))}</h2>
 <div class=tags>{tags}</div>
-<a class=read href="{aesc(o.get('url','#'))}" target=_blank><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 2px;"><line x1="7" y1="17" x2="17" y2="7"></line><polyline points="7 7 17 7 17 17"></polyline></svg>阅读原帖 · {esc(domain)}</a>
+<a class=read href="{aesc(safe_link)}" target=_blank rel="noopener noreferrer"><svg aria-hidden=true width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 2px;"><line x1="7" y1="17" x2="17" y2="7"></line><polyline points="7 7 17 7 17 17"></polyline></svg>阅读原帖 · {esc(domain)}</a>
 {_analysis(o)}
 <div class=rec><b>机会判定：</b>{esc(o.get('reason',''))}</div>
 <details class=raw><summary>原帖摘录</summary>{esc(_excerpt(o, 400))}</details>
@@ -932,7 +937,7 @@ def _deepdive(o: dict) -> str:
                 '<a class=cta href="/login">登录开聊</a></div>')
     box = (
         '<div class=chatlog id=clog></div>'
-        '<div class=chatin><textarea id=cq placeholder="问点什么，比如：谁最可能先掏钱？怎么低成本验证？"></textarea>'
+        '<div class=chatin><textarea id=cq aria-label="深挖问题" placeholder="问点什么，比如：谁最可能先掏钱？怎么低成本验证？"></textarea>'
         '<button onclick="argoAsk()" id=cbtn>追问</button></div>')
     return f"""<div class=deep>
 <div class=dtitle>深挖这条机会 <span class=dquota>不限次</span></div>
@@ -983,7 +988,9 @@ def _daily() -> str:
         f' <span class=dscore>{int(o.get("score",0))}分</span>'
         f'<div class=dreason>{esc(o.get("reason",""))}</div></div></div>'
         for i, o in enumerate(all_opps))
-    body = head + f'<h2 class=daygrp>{esc(day)} {_weekday(day)} · {len(all_opps)} 条</h2>{rows}'
+    empty = ('<div class=empty><b>今天暂时没有通过真需求筛选的新机会</b>'
+             '雷达已按计划更新，下一次扫描会继续补充。</div>') if not all_opps else ''
+    body = head + f'<h2 class=daygrp>{esc(day)} {_weekday(day)} · {len(all_opps)} 条</h2>{rows}{empty}'
     return _page("金羊毛 Argo · 日报", body, "/daily")
 
 
@@ -1102,12 +1109,12 @@ def _admin() -> str:
     week_ago = time.time() - 7 * 86400
     recent7 = sum(1 for x in us if x.get("created", 0) >= week_ago)
     # 近 7 天每天注册数（趋势条）
-    from datetime import date as _date, timedelta
+    from datetime import timedelta
     by_day = {}
     for x in us:
         d = time.strftime("%m-%d", time.localtime(x.get("created", 0)))
         by_day[d] = by_day.get(d, 0) + 1
-    days7 = [(_date.today() - timedelta(days=i)).strftime("%m-%d") for i in range(6, -1, -1)]
+    days7 = [(clock.now().date() - timedelta(days=i)).strftime("%m-%d") for i in range(6, -1, -1)]
     peak = max([by_day.get(d, 0) for d in days7] + [1])
     trend = "".join(
         f'<div class=tcol><div class=tbar style="height:{int(by_day.get(d,0)/peak*60)+2}px" '
@@ -1153,8 +1160,7 @@ def _agent_page() -> str:
 
 
 def _opps_today() -> list[dict]:
-    days = store.load_days()
-    return days[0][1] if days else []
+    return store.load_day(clock.today_iso()) or []
 
 
 def _with_opp_context(text: str, item_id) -> str:
@@ -1173,26 +1179,13 @@ def _with_opp_context(text: str, item_id) -> str:
 
 
 def _accessible_ids(user) -> set:
-    """该用户能看的机会 id 全集：按 plan 限「最近 N 天」×「每天前 feed_limit 条」。"""
-    from datetime import timedelta
-    limit = plans.feed_limit(user)
-    cutoff = (date.today() - timedelta(days=plans.history_days(user) - 1)).isoformat()
-    ids = set()
-    for day, opps in store.load_days():
-        if day < cutoff:
-            continue
-        for o in sorted(opps, key=lambda x: x.get("score", 0), reverse=True)[:limit]:
-            ids.add(o.get("id", ""))
-    return ids
+    """当前免费产品对所有用户开放全部历史机会。"""
+    return {o.get("id", "") for o in store.load_flat()}
 
 
-def _gated_today(headers: dict) -> list[dict]:
-    """API 也按付费墙门控：IM token 全量；网页用户/匿名按 plan。"""
-    opps = _opps_today()
-    token = config.get("ARGO_API_TOKEN")
-    if token and headers.get("x-argo-token") == token:
-        return opps
-    return opps[:plans.feed_limit(_req_user.get())]
+def _gated_today() -> list[dict]:
+    """当前免费产品的当日 API 返回完整榜单。"""
+    return _opps_today()
 
 
 def route(method: str, raw_path: str, body: bytes, headers: dict) -> tuple[int, str, str]:
@@ -1272,21 +1265,22 @@ def route(method: str, raw_path: str, body: bytes, headers: dict) -> tuple[int, 
         status, html = _detail(path[len("/items/"):])
         return status, H, html
     if method == "GET" and path == "/api/opportunities":
-        return 200, J, json.dumps(_gated_today(headers), ensure_ascii=False)
+        return 200, J, json.dumps(_gated_today(), ensure_ascii=False)
     if method == "GET" and path == "/api/daily":
-        gated = _gated_today(headers)
+        gated = _gated_today()
         return 200, J, json.dumps(
-            {"date": date.today().isoformat(), "count": len(gated),
+            {"date": clock.today_iso(), "count": len(gated),
              "opportunities": gated}, ensure_ascii=False)
     if method == "POST" and path == "/api/chat":
         token = config.get("ARGO_API_TOKEN")
-        by_token = bool(token) and headers.get("x-argo-token") == token
+        supplied_token = headers.get("x-argo-token", "")
+        by_token = bool(token) and hmac.compare_digest(str(supplied_token), str(token))
         user = _req_user.get()
         if not by_token:
             # 非可信 IM：必须登录
             if not user:
                 return 401, J, json.dumps({"error": "请先登录", "login": "/login"}, ensure_ascii=False)
-            plans.use_chat(user)
+            # 当前形态为不限次深挖，不消费旧会员配额。
         try:
             data = json.loads(body or b"{}")
         except Exception:
@@ -1305,6 +1299,11 @@ def route(method: str, raw_path: str, body: bytes, headers: dict) -> tuple[int, 
 
 
 def _secure() -> bool:
+    if os.environ.get("VERCEL"):
+        return True
+    public_url = (config.get("ARGO_PUBLIC_URL", "") or "").lower()
+    if public_url.startswith("https://"):
+        return True
     return config.get("ARGO_WEB_HOST", "127.0.0.1") not in ("127.0.0.1", "localhost", "")
 
 
