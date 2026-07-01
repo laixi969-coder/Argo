@@ -8,7 +8,7 @@
 ```
 GitHub Actions（每天 07:00 / 13:00 / 19:00 北京，仅 daily.yml）
    → python -m src.main
-       → 5 个源抓取：reddit_tikhub · reddit_comments_tikhub · producthunt · hackernews · tikhub(TikTok)
+       → 多源抓取：Reddit · Product Hunt 成果产品池 · Hacker News 今日首页/需求搜索/历史 Show HN 成果池 · TikTok
        → prefilter(60) → dedup(去重已见) → extract(LLM出中文机会) → score(/req真需求打分) → rank(20)
        → store.append → 写入 Upstash KV（history:{日期} + history:days 索引）
    Vercel 站点(argo-woad.vercel.app) 每次访问实时读 KV → 渲染机会卡片
@@ -18,6 +18,7 @@ GitHub Actions（每天 07:00 / 13:00 / 19:00 北京，仅 daily.yml）
 - **跑流水线的是 GitHub Actions，不是 Vercel**。Vercel 只当"网站门面"，被动读 KV。
 - **数据更新不需要重新部署 Vercel**：KV 一变，下次刷新页面就是新的。
 - 每天三班扫描写入同一个 `history:YYYY-MM-DD`，按机会 ID 去重合并；后跑班次不得覆盖早班历史，空榜不得擦除已有结果。
+- 榜单同时接受“当天新需求”和“不限发布日期的已有成果产品”；产品已存在只代表值得研究，不自动等于市场付费已验证。
 - 所有“今天”统一按 `Asia/Shanghai` 计算；`history:days` 是日期索引，具体快照永久保留且不设 TTL。
 
 ## 2. 配置都在哪

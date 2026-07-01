@@ -570,6 +570,11 @@ def _cat_tag(o: dict) -> str:
     return f'<span class=tag>{esc(cat)}</span>'
 
 
+def _type_tag(o: dict) -> str:
+    kind = (o.get("opportunity_type") or "").strip()
+    return f'<span class=tag>{esc(kind)}</span>' if kind else ""
+
+
 def _is_super_admin() -> bool:
     u = _req_user.get()
     admin_email = (config.get("ARGO_ADMIN_EMAIL") or "").strip().lower()
@@ -643,7 +648,7 @@ def _card(o: dict, rank: int) -> str:
 <article>
 <div class=meta><span class=src>{esc(o.get('source',''))}</span>
 <span class="{_vclass(o.get('verdict',''))}">{esc(o.get('verdict',''))}</span>
-{_cat_tag(o)}</div>
+{_type_tag(o)}{_cat_tag(o)}</div>
 <h3><a href="/items/{aesc(o.get('id',''))}">{esc(o.get('idea',''))}</a></h3>
 <p class=summary>{esc(_hook(o))}</p>
 <div class=rec><b>推荐理由：</b>{esc(o.get('reason',''))}</div>

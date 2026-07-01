@@ -24,5 +24,7 @@ def fetch():
             "source": "producthunt", "title": n["name"],
             "raw_text": f"{n['tagline']}\n{n.get('description','')}",
             "url": n["url"], "signal": float(min(n["votesCount"], 100)),
+            # Product Hunt 在 Argo 中是成果产品池，不要求必须是今天发布。
+            "opportunity_type": "已有成果产品",
         })
     return out

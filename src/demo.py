@@ -45,6 +45,8 @@ def _fake_llm(prompt: str) -> str:
         if score_stage and idea in prompt:         # score 阶段：提炼句 → 结构化 JSON
             return json.dumps({
                 "verdict": verdict, "score": sc, "category": cat,
+                "disproof": ("用户明确表示不会为批量 AI SEO 内容付费，且现有免费方案已满足需求"
+                              if verdict == "伪需求" else "无"),
                 "evidence_strength": "强" if verdict == "真需求" else "中",
                 "next_validation": "收取一笔可退预付款验证支付意愿",
                 "hook": f"{idea[:18]}——有人一直在抱怨且愿意花钱解决",

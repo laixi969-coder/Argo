@@ -49,3 +49,27 @@ def test_score_rejects_invalid_model_values():
 
     assert out[0]["verdict"] == "待验证"
     assert out[0]["score"] == 40
+
+
+def test_score_downgrades_unsupported_fake_demand_to_pending():
+    raw = '{"verdict":"伪需求","score":12,"reason":"没有付费证据","disproof":"无"}'
+    out = score_real_demand([{"idea": "AI 视频工作流", "signal": 30}], llm=lambda p: raw)
+
+    assert out[0]["verdict"] == "待验证"
+    assert out[0]["score"] == 40
+    assert "缺少明确反证" in out[0]["reason"]
+
+
+def test_score_keeps_fake_demand_when_explicit_disproof_exists():
+    raw = '{"verdict":"伪需求","score":18,"reason":"用户明确拒绝付费","disproof":"受访用户明确表示不会付费"}'
+    out = score_real_demand([{"idea": "x", "signal": 30}], llm=lambda p: raw)
+
+    assert out[0]["verdict"] == "伪需求"
+
+
+def test_score_accepts_market_validated_with_payment_proof():
+    raw = '{"verdict":"市场已验证","score":82,"reason":"已有持续付费","market_proof":"100 名付费用户"}'
+    out = score_real_demand([{"idea": "x", "signal": 30}], llm=lambda p: raw)
+
+    assert out[0]["verdict"] == "市场已验证"
+    assert out[0]["market_proof"] == "100 名付费用户"

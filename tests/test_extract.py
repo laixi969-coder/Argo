@@ -66,3 +66,42 @@ def test_extract_defaults_is_demand_true_when_absent():
     opps = [{"title": "x", "raw_text": "y"}]
     out = extract_ideas(opps, llm=lambda p: resp)
     assert out[0]["is_demand"] is True
+
+
+def test_extract_prompt_keeps_concrete_existing_products_as_opportunity_signals():
+    seen = {}
+
+    def fake_llm(prompt):
+        seen["prompt"] = prompt
+        return '''{
+          "is_demand": true,
+          "idea": "面向广告团队的 AI 视频工作流",
+          "customer": "广告团队",
+          "job": "批量制作广告视频",
+          "market_proof": "已有付费方案"
+        }'''
+
+    out = extract_ideas([{"title": "Video workflow launched", "raw_text": "For ad teams"}], llm=fake_llm)
+
+    assert "产品公告" in seen["prompt"] and "is_demand 记 true" in seen["prompt"]
+    assert out[0]["is_demand"] is True
+    assert out[0]["market_proof"] == "已有付费方案"
+
+
+def test_producthunt_product_is_not_dropped_as_a_generic_announcement():
+    resp = '''{
+      "is_demand": false,
+      "idea": "面向设计团队的 AI 素材版本管理工具",
+      "customer": "设计团队",
+      "job": "管理素材版本"
+    }'''
+    opps = [{
+        "source": "producthunt",
+        "opportunity_type": "已有成果产品",
+        "title": "AssetFlow",
+        "raw_text": "Version control for design assets",
+    }]
+
+    out = extract_ideas(opps, llm=lambda p: resp)
+
+    assert out[0]["is_demand"] is True

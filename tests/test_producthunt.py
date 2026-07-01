@@ -26,6 +26,7 @@ def test_fetch_parses_posts(monkeypatch):
     out = producthunt.fetch()
     assert out[0]["title"] == "Foo" and out[0]["source"] == "producthunt"
     assert out[0]["signal"] == 30.0
+    assert out[0]["opportunity_type"] == "已有成果产品"
 
 
 def test_fetch_raises_clear_on_api_errors(monkeypatch):
