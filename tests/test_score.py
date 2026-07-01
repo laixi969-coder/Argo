@@ -7,12 +7,26 @@ def test_score_fills_fields():
     assert out[0]["verdict"] == "真需求"
     assert out[0]["score"] == 75
     assert out[0]["reason"]
+    assert out[0]["commercial_potential"] == "中"
+    assert out[0]["category"] == "AI应用"
+    assert out[0]["industry"] == "金融"
+    assert out[0]["tags"]
 
 def test_score_degrades_on_bad_json():
     opps = [{"idea": "x", "signal": 40}]
     out = score_real_demand(opps, llm=lambda p: "模型今天抽风不是 JSON")
     assert out[0]["verdict"] == "待验证"
     assert out[0]["score"] == 40
+
+
+def test_score_failure_cannot_become_high_potential_from_source_heat():
+    item = score_real_demand(
+        [{"idea": "热门但未精判", "signal": 100}], llm=lambda p: "bad json"
+    )[0]
+
+    assert item["score"] == 45
+    assert item["commercial_potential"] == "低"
+    assert item["verdict"] == "待验证"
 
 
 def test_score_passes_evidence_to_judge_and_keeps_validation_action():
@@ -73,3 +87,65 @@ def test_score_accepts_market_validated_with_payment_proof():
 
     assert out[0]["verdict"] == "市场已验证"
     assert out[0]["market_proof"] == "100 名付费用户"
+
+
+def test_score_keeps_ai_industry_category_and_hint():
+    seen = {}
+
+    def fake_llm(prompt):
+        seen["prompt"] = prompt
+        return ('{"verdict":"真需求","score":78,"reason":"停机损失明确",'
+                '"category":"AI × 工业"}')
+
+    out = score_real_demand([{
+        "idea": "工厂预测性维护",
+        "signal": 50,
+        "discovery_theme": "AI × 工业",
+    }], llm=fake_llm)
+
+    assert "AI × 工业" in seen["prompt"]
+    assert out[0]["category"] == "AI × 工业"
+
+
+def test_score_persists_commercial_analysis_industry_and_tags():
+    raw = '''{
+      "verdict":"市场已验证",
+      "score":88,
+      "category":"Agent",
+      "industry":"制造业",
+      "commercial_potential":"高",
+      "tags":["预测性维护","设备诊断","B2B SaaS"],
+      "hook":"停机一小时就产生真实损失",
+      "pain":"设备故障导致非计划停机",
+      "buyer":"工厂设备负责人",
+      "money":"按设备订阅",
+      "angle":"先接入高价值产线",
+      "risk":"缺少设备历史数据",
+      "commercial_evidence":"已有 20 家工厂付费",
+      "market_proof":"20 家工厂付费",
+      "reason":"真实停机损失且已有付费"
+    }'''
+    out = score_real_demand([{
+        "idea": "工业设备诊断 Agent", "signal": 70,
+        "industry_hint": "制造业", "source_tags": ["agent", "maintenance"],
+    }], llm=lambda p: raw)
+    item = out[0]
+
+    assert item["commercial_potential"] == "高"
+    assert item["industry"] == "制造业"
+    assert item["tags"] == ["预测性维护", "设备诊断", "B2B SaaS"]
+    assert item["buyer"] == "工厂设备负责人"
+    assert item["money"] == "按设备订阅"
+    assert item["commercial_evidence"] == "已有 20 家工厂付费"
+
+
+def test_score_sanitizes_unknown_taxonomy_values():
+    raw = ('{"verdict":"真需求","score":65,"reason":"有重复行为",'
+           '"category":"宇宙产品","industry":"火星农业",'
+           '"commercial_potential":"暴高","tags":"不是数组"}')
+    item = score_real_demand([{"idea": "x", "signal": 30}], llm=lambda p: raw)[0]
+
+    assert item["category"] == "AI应用"
+    assert item["industry"] == "跨行业"
+    assert item["commercial_potential"] == "中"
+    assert isinstance(item["tags"], list)

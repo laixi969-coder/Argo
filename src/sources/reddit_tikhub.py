@@ -9,7 +9,7 @@ import time
 import requests
 
 from src import config
-from src.sources.demand_keywords import KEYWORDS
+from src.sources.demand_keywords import INDUSTRIAL_AI_KEYWORDS, KEYWORDS
 
 _PER_KEYWORD = 15  # 每个关键词取多少帖，控制 TikHub credit 消耗
 _ENDPOINT = "/api/v1/reddit/app/fetch_dynamic_search"
@@ -113,5 +113,7 @@ def fetch() -> list[dict]:
         for p in posts:
             if p["url"] not in seen:
                 seen.add(p["url"])
+                if kw in INDUSTRIAL_AI_KEYWORDS:
+                    p["discovery_theme"] = "AI × 工业"
                 out.append(p)
     return out

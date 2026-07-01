@@ -5,11 +5,15 @@
   <key>Label</key><string>com.argo.daily</string>
   <key>ProgramArguments</key>
   <array>
-    <string>/Library/Frameworks/Python.framework/Versions/3.14/bin/python3</string>
+    <string>/Library/Developer/CommandLineTools/usr/bin/python3</string>
     <string>-m</string>
     <string>src.main</string>
   </array>
-  <key>WorkingDirectory</key><string>/Users/xiaolongxia/Argo</string>
+  <key>WorkingDirectory</key><string>/Users/caiwenbin/argo</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>TZ</key><string>Asia/Shanghai</string>
+  </dict>
   <key>StartCalendarInterval</key>
   <array>
     <dict><key>Hour</key><integer>7</integer><key>Minute</key><integer>0</integer></dict>

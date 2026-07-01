@@ -68,6 +68,25 @@ def test_extract_defaults_is_demand_true_when_absent():
     assert out[0]["is_demand"] is True
 
 
+def test_extract_marks_non_ai_consumer_product_out_of_scope():
+    resp = ('{"is_demand":true,"is_ai_application":false,'
+            '"idea":"平价彩妆组合","customer":"消费者"}')
+    out = extract_ideas([{
+        "source": "tiktok", "title": "drugstore makeup", "raw_text": "take my money"
+    }], llm=lambda p: resp)
+
+    assert out[0]["is_demand"] is True
+    assert out[0]["is_ai_application"] is False
+
+
+def test_extract_keeps_agent_as_ai_application():
+    resp = ('{"is_demand":true,"is_ai_application":true,'
+            '"idea":"销售跟进 Agent","customer":"销售团队"}')
+    out = extract_ideas([{"title": "AI sales agent", "raw_text": ""}], llm=lambda p: resp)
+
+    assert out[0]["is_ai_application"] is True
+
+
 def test_extract_prompt_keeps_concrete_existing_products_as_opportunity_signals():
     seen = {}
 

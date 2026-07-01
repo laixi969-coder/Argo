@@ -1,6 +1,6 @@
 import requests
 
-from src.sources.demand_keywords import KEYWORDS  # 跨平台共用需求词库
+from src.sources.demand_keywords import INDUSTRIAL_AI_KEYWORDS, KEYWORDS  # 跨平台共用需求词库
 
 # HN Algolia 搜索 API：无需 key、无需配置，永久免费。
 # 按需求关键词搜，而非拉全站热榜——热榜是新闻，含不了「有人要买什么」的需求。
@@ -56,6 +56,9 @@ def fetch():
         except Exception as exc:  # 单关键词失败不拖垮整源
             print(f"[hackernews] 关键词 {kw!r} 失败: {exc}")
             continue
+        if kw in INDUSTRIAL_AI_KEYWORDS:
+            for hit in hits:
+                hit["_argo_discovery_theme"] = "AI × 工业"
         groups.append((hits, "需求信号"))
     for label, loader in (("今日内容", _front_page), ("已有成果产品", _product_pool)):
         try:
@@ -79,6 +82,8 @@ def fetch():
                 "url": url,
                 "signal": float(min(h.get("points", 0) or 0, 100)),
                 "opportunity_type": item_type,
+                "is_outcome": item_type == "已有成果产品",
                 "published_at": h.get("created_at") or "",
+                "discovery_theme": h.get("_argo_discovery_theme") or "",
             })
     return out

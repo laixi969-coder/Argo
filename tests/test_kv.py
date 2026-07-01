@@ -85,6 +85,18 @@ def test_upstash_rest_command(monkeypatch):
                     "auth": "Bearer secret", "timeout": 5}
 
 
+def test_get_many_json_uses_one_mget(monkeypatch):
+    calls = []
+    monkeypatch.setattr(kv, "command", lambda *args: calls.append(args) or [
+        '{"idea":"a"}', None, "bad-json",
+    ])
+
+    assert kv.get_many_json(["history:a", "history:b", "history:c"]) == [
+        {"idea": "a"}, None, None,
+    ]
+    assert calls == [("MGET", "argo:history:a", "argo:history:b", "argo:history:c")]
+
+
 def test_vercel_marketplace_variable_names(monkeypatch):
     monkeypatch.delenv("UPSTASH_REDIS_REST_URL", raising=False)
     monkeypatch.delenv("UPSTASH_REDIS_REST_TOKEN", raising=False)

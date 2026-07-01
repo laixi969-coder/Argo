@@ -66,7 +66,8 @@ def test_upgrade_records_intent():
 def test_free_feed_ungated():
     # 放 8 条今天的机会，免费版应该全部显示
     opps = [{"idea": f"机会{i}", "verdict": "值得做", "score": 90 - i, "reason": "r",
-             "url": f"http://x/{i}", "source": "s", "category": "AI应用"} for i in range(8)]
+             "url": f"http://x/{i}", "source": "s", "category": "AI应用",
+             "is_ai_application": True} for i in range(8)]
     from datetime import date
     store.append(opps, day=date.today().isoformat())
     _, _, body = web.route("GET", "/app", b"", {})
@@ -88,7 +89,8 @@ def test_landing_for_logged_out():
 def test_app_route_shows_feed():
     from datetime import date
     store.append([{"idea": "x", "verdict": "值得做", "score": 80, "reason": "r",
-                   "url": "http://x", "source": "s", "category": "AI应用"}], day=date.today().isoformat())
+                   "url": "http://x", "source": "s", "category": "AI应用",
+                   "is_ai_application": True}], day=date.today().isoformat())
     _, _, body = web.route("GET", "/app", b"", {})
     assert "机会分" in body and "精选" in body  # /app 永远是机会流
 
@@ -114,7 +116,8 @@ def test_web_chat_allows_multiple(monkeypatch):
 def test_detail_shows_login_prompt_for_deepdive():
     from datetime import date
     store.append([{"idea": "x", "verdict": "值得做", "score": 80, "reason": "r",
-                   "url": "http://x", "source": "s", "category": "AI应用"}], day=date.today().isoformat())
+                   "url": "http://x", "source": "s", "category": "AI应用",
+                   "is_ai_application": True}], day=date.today().isoformat())
     iid = store.item_id({"url": "http://x"})
     _, _, body = web.route("GET", f"/items/{iid}", b"", {})
     assert "深挖这条机会" in body and "登录开聊" in body  # 未登录给引导
@@ -140,7 +143,8 @@ def test_api_is_fully_accessible(monkeypatch):
     from datetime import date
     monkeypatch.setattr(web.config, "get", lambda k, d=None: "")  # 无 token
     opps = [{"idea": f"机会{i}", "verdict": "值得做", "score": 90 - i, "reason": "r",
-             "url": f"http://x/{i}", "source": "s", "category": "AI应用"} for i in range(8)]
+             "url": f"http://x/{i}", "source": "s", "category": "AI应用",
+             "is_ai_application": True} for i in range(8)]
     store.append(opps, day=date.today().isoformat())
     # 匿名/免费：API 应该返回全部 (不被付费墙拦截)
     _, _, body = web.route("GET", "/api/opportunities", b"", {})
@@ -162,6 +166,7 @@ def test_deepdive_injects_opp_context(monkeypatch):
     cookie = auth.make_cookie(u["id"])
     store.append([{"idea": "发票工具", "verdict": "值得做", "score": 80, "reason": "r",
                    "url": "http://x", "source": "s", "category": "AI应用",
+                   "is_ai_application": True,
                    "pain": "手动拆发票痛", "money": "订阅收费"}], day=date.today().isoformat())
     iid = store.item_id({"url": "http://x"})
     web.route("POST", "/api/chat", _j.dumps({"text": "谁先买单", "item_id": iid}).encode(),
@@ -174,7 +179,8 @@ def test_save_toggle_and_page(monkeypatch):
     import json as _j
     from datetime import date
     store.append([{"idea": "发票工具", "verdict": "值得做", "score": 80, "reason": "r",
-                   "url": "http://x", "source": "s", "category": "AI应用"}], day=date.today().isoformat())
+                   "url": "http://x", "source": "s", "category": "AI应用",
+                   "is_ai_application": True}], day=date.today().isoformat())
     iid = store.item_id({"url": "http://x"})
     u = users.create("a@b.com", "password1")
     cookie = auth.make_cookie(u["id"])
@@ -238,7 +244,8 @@ def test_signup_redirects_to_welcome():
 def test_welcome_banner_for_new_user():
     from datetime import date
     store.append([{"idea": "x", "verdict": "值得做", "score": 80, "reason": "r",
-                   "url": "http://x", "source": "s", "category": "AI应用"}], day=date.today().isoformat())
+                   "url": "http://x", "source": "s", "category": "AI应用",
+                   "is_ai_application": True}], day=date.today().isoformat())
     u = users.create("a@b.com", "password1")
     cookie = auth.make_cookie(u["id"])
     _, _, body = web.route("GET", "/?welcome=1", b"", {"cookie": cookie})
@@ -251,6 +258,7 @@ def test_paywall_removed():
     from datetime import date
     opps = [{"idea": f"机会{i}", "verdict": "值得做", "score": 90 - i, "reason": "r",
              "url": f"http://x/{i}", "source": "s", "category": "AI应用",
+             "is_ai_application": True,
              "pain": "痛", "money": "钱"} for i in range(5)]
     store.append(opps, day=date.today().isoformat())
     top_id = store.item_id({"url": "http://x/0"})

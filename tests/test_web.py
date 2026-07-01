@@ -12,12 +12,16 @@ def seed(tmp_path, monkeypatch):
     monkeypatch.setattr(plans, "history_days", lambda u: 999)
     opps = [
         {"idea": "发票工具", "verdict": "值得做", "score": 84, "reason": "刚需",
+         "is_ai_application": True,
          "url": "http://x", "source": "reddit", "category": "AI应用",
+         "industry": "金融", "commercial_potential": "高", "tags": ["发票", "自动化"],
          "title": "auto invoice", "raw_text": "freelancers hate splitting invoices manually",
          "hook": "自由职业者天天手动拆发票", "pain": "反复手动折腾耗时易错",
          "buyer": "自由职业者愿月付 50", "angle": "单点切入先跑通付费", "risk": "可能只是看着方便"},
         {"idea": "遛狗排班", "verdict": "待验证", "score": 62, "reason": "看看",
+         "is_ai_application": True,
          "url": "http://y", "source": "producthunt", "category": "服务",
+         "industry": "消费生活", "commercial_potential": "中", "tags": ["宠物服务"],
          "title": "dog walk", "raw_text": "neighborhood dog walking schedule"},
     ]
     from datetime import date, timedelta
@@ -52,6 +56,27 @@ def test_category_filter():
     assert f"/items/{dog_id}" in body          # 遛狗排班(服务)在
     assert f"/items/{fapiao_id}" not in body   # 发票工具(AI应用)被筛掉
     assert 'class="on"' in body                # 分类高亮生效
+
+
+def test_industry_filter_and_labels():
+    _, _, finance = web.route("GET", "/all?industry=金融", b"", {})
+    _, _, consumer = web.route("GET", "/all?industry=消费生活", b"", {})
+    fapiao_id = store.item_id({"url": "http://x"})
+    dog_id = store.item_id({"url": "http://y"})
+
+    assert f"/items/{fapiao_id}" in finance and f"/items/{dog_id}" not in finance
+    assert f"/items/{dog_id}" in consumer and f"/items/{fapiao_id}" not in consumer
+    assert "全部行业" in finance
+
+
+def test_cards_and_detail_show_commercial_tags():
+    _, _, feed = web.route("GET", "/app", b"", {})
+    item_id = store.item_id({"url": "http://x"})
+    _, _, detail = web.route("GET", f"/items/{item_id}", b"", {})
+
+    assert "高商业潜力" in feed and "金融" in feed
+    assert "发票" in feed and "自动化" in feed
+    assert "高商业潜力" in detail and "金融" in detail and "发票" in detail
 
 
 def test_pagination_second_page():
@@ -112,6 +137,37 @@ def test_daily_page():
     assert status == 200 and "AI 日报" in body and "发票工具" in body
 
 
+def test_web_hides_opportunities_below_30(monkeypatch):
+    low = {"id": "low", "idea": "不应展示", "verdict": "待验证", "score": 29,
+           "reason": "弱", "url": "http://x", "source": "s"}
+    high = {"id": "high", "idea": "应展示", "verdict": "待验证", "score": 30,
+            "reason": "达标", "url": "http://y", "source": "s"}
+    monkeypatch.setattr(web.store, "load_days", lambda: [("2026-07-01", [low, high])])
+    monkeypatch.setattr(web.store, "load_flat", lambda: [low, high])
+    monkeypatch.setattr(web.store, "load_day", lambda day: [low, high])
+    monkeypatch.setattr(web.auth, "current_user", lambda cookie: {"id": "u", "email": "u@x.com"})
+
+    _, _, featured = web.route("GET", "/", b"", {})
+    _, _, api = web.route("GET", "/api/opportunities", b"", {})
+
+    assert "应展示" in featured and "不应展示" not in featured
+    assert [o["idea"] for o in json.loads(api)] == ["应展示"]
+
+
+def test_web_hides_non_ai_products_even_when_score_is_high(monkeypatch):
+    physical = {"id": "p", "idea": "普通毛绒玩具", "score": 90, "verdict": "真需求",
+                "reason": "有人买", "url": "https://x", "source": "tiktok",
+                "is_ai_application": False}
+    monkeypatch.setattr(web.store, "load_days", lambda: [("2026-07-01", [physical])])
+    monkeypatch.setattr(web.store, "load_day", lambda day: [physical])
+
+    _, _, page = web.route("GET", "/app", b"", {})
+    _, _, api = web.route("GET", "/api/opportunities", b"", {})
+
+    assert "普通毛绒玩具" not in page
+    assert json.loads(api) == []
+
+
 def test_daily_api_never_labels_yesterday_as_today(monkeypatch):
     monkeypatch.setattr(web.store, "load_day", lambda day: None)
     monkeypatch.setattr(web.clock, "today_iso", lambda: "2026-06-30")
@@ -127,6 +183,14 @@ def test_feedback_page():
     assert status == 200 and "反馈" in body
 
 
+def test_sources_page_lists_long_term_sources_and_schedule():
+    status, _, body = web.route("GET", "/sources", b"", {})
+
+    assert status == 200
+    assert "Hugging Face Spaces" in body and "Futurepedia" in body
+    assert "AI 行业应用专线" in body and "07:00 / 13:00 / 19:00" in body
+
+
 def test_dark_mode_toggle_present():
     _, _, body = web.route("GET", "/app", b"", {})
     assert "argoTheme" in body and "data-theme" in body
@@ -138,7 +202,8 @@ def test_attr_escaping_blocks_injection(tmp_path, monkeypatch):
     from datetime import date as _d
     evil = 'http://x" onmouseover="alert(1)'
     store.append([{"idea": "i", "verdict": "值得做", "score": 80, "reason": "r",
-                   "url": evil, "source": "s", "category": "AI应用", "pain": "p"}],
+                   "url": evil, "source": "s", "category": "AI应用", "pain": "p",
+                   "is_ai_application": True}],
                  day=_d.today().isoformat())
     iid = store.item_id({"url": evil})
     _, _, body = web.route("GET", f"/items/{iid}", b"", {})
@@ -155,7 +220,8 @@ def test_detail_blocks_non_http_source_url(tmp_path, monkeypatch):
     from datetime import date as _d
     evil = "javascript:alert(1)"
     store.append([{"idea": "i", "verdict": "待验证", "score": 50, "reason": "r",
-                   "url": evil, "source": "s", "category": "AI应用"}],
+                   "url": evil, "source": "s", "category": "AI应用",
+                   "is_ai_application": True}],
                  day=_d.today().isoformat())
     iid = store.item_id({"url": evil})
     _, _, body = web.route("GET", f"/items/{iid}", b"", {})

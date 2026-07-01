@@ -9,7 +9,7 @@ import json
 import os
 from pathlib import Path
 
-from src import clock, kv
+from src import clock, kv, taxonomy
 
 DATA = Path(__file__).resolve().parent.parent / "data"
 HISTORY = DATA / "history"
@@ -26,6 +26,19 @@ def is_demo_item(o: dict) -> bool:
     return bool(o.get("_demo")) or url in {f"https://example.com/{i}" for i in range(6)}
 
 
+def _loaded(opps, *, include_demo: bool = False) -> list[dict]:
+    """读取时补齐新字段并应用安全迁移，不要求手工改历史 JSON。"""
+    loaded = []
+    for o in opps or []:
+        if not include_demo and is_demo_item(o):
+            continue
+        enriched = taxonomy.enrich(dict(o))
+        if enriched.get("is_ai_application") is not True:
+            continue
+        loaded.append(enriched)
+    return loaded
+
+
 def _merge(existing: list[dict] | None, incoming: list[dict], day: str) -> list[dict]:
     """合并同日多班扫描；同一机会用新结果刷新，历史机会不丢。"""
     merged = {}
@@ -33,6 +46,9 @@ def _merge(existing: list[dict] | None, incoming: list[dict], day: str) -> list[
         if is_demo_item(o):
             continue
         enriched = dict(o)
+        taxonomy.enrich(enriched)
+        if enriched.get("is_ai_application") is not True:
+            continue
         enriched["id"] = item_id(enriched)
         enriched["date"] = day
         merged[enriched["id"]] = enriched
@@ -68,24 +84,15 @@ def append(opps: list[dict], day: str | None = None) -> None:
     os.replace(tmp, p)
 
 
-def load_days() -> list[tuple[str, list[dict]]]:
-    """返回 [(日期, 机会列表), ...]，日期倒序。无历史时回退当天 latest_report。"""
-    if kv.enabled():
-        days = sorted(kv.smembers("history:days"), reverse=True)
-        out = []
-        for d in days:
-            opps = kv.get_json(f"history:{d}")
-            # 空榜也是一次有效的今日更新，不能因此回退显示昨天。
-            if opps is not None:
-                out.append((d, [o for o in opps if not is_demo_item(o)]))
-        return out
+def _load_local_days() -> list[tuple[str, list[dict]]]:
+    """本地快照降级读取；云 KV 短暂不可用时网站仍能展示今日榜单。"""
     if HISTORY.exists():
         days = sorted((p for p in HISTORY.glob("*.json")), reverse=True)
         if days:
             out = []
             for p in days:
                 try:
-                    out.append((p.stem, [o for o in json.loads(p.read_text()) if not is_demo_item(o)]))
+                    out.append((p.stem, _loaded(json.loads(p.read_text()))))
                 except Exception:
                     continue
             return out
@@ -93,10 +100,27 @@ def load_days() -> list[tuple[str, list[dict]]]:
         try:
             opps = json.loads(LATEST.read_text())
             today = clock.today_iso()
-            return [(today, [dict(o, id=item_id(o), date=today) for o in opps])]
+            return [(today, _loaded([dict(o, id=item_id(o), date=today) for o in opps]))]
         except Exception:
             return []
     return []
+
+
+def load_days() -> list[tuple[str, list[dict]]]:
+    """返回 [(日期, 机会列表), ...]，日期倒序。无历史时回退当天 latest_report。"""
+    if kv.enabled():
+        try:
+            days = sorted(kv.smembers("history:days"), reverse=True)
+            out = []
+            snapshots = kv.get_many_json([f"history:{d}" for d in days])
+            for d, opps in zip(days, snapshots):
+                # 空榜也是一次有效的今日更新，不能因此回退显示昨天。
+                if opps is not None:
+                    out.append((d, _loaded(opps)))
+            return out
+        except RuntimeError as exc:
+            print(f"[warn] {exc}，网站降级读取本地最新榜单")
+    return _load_local_days()
 
 
 def load_flat() -> list[dict]:
@@ -108,14 +132,21 @@ def load_day(day: str | None = None, *, include_demo: bool = False) -> list[dict
     """读取指定业务日；不存在返回 None，空榜返回 []。"""
     day = day or clock.today_iso()
     if kv.enabled():
-        opps = kv.get_json(f"history:{day}")
-        return opps if include_demo or opps is None else [o for o in opps if not is_demo_item(o)]
+        try:
+            opps = kv.get_json(f"history:{day}")
+            return None if opps is None else _loaded(opps, include_demo=include_demo)
+        except RuntimeError as exc:
+            print(f"[warn] {exc}，按日本地降级读取")
+            if day == clock.today_iso():
+                local = _load_local_days()
+                return local[0][1] if local else None
+            return None
     p = HISTORY / f"{day}.json"
     if not p.exists():
         return None
     try:
         opps = json.loads(p.read_text())
-        return opps if include_demo else [o for o in opps if not is_demo_item(o)]
+        return _loaded(opps, include_demo=include_demo)
     except (OSError, json.JSONDecodeError):
         return None
 

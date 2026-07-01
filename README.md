@@ -5,7 +5,7 @@
 
 一个私人用的产品机会雷达，**双层结构**：
 
-- **每日雷达（广）**：自动扫公开数据源（Reddit / Product Hunt），用「真需求」框架过滤伪需求，每天把 Top 20 机会推送到 Telegram。
+- **每日雷达（广）**：自动扫 Reddit、Product Hunt、Hacker News、Hugging Face Spaces、GitHub、Futurepedia 与 AI 行业应用专线，覆盖需求信号、产品目录、可运行 Demo、Agent / MCP、开源成果，以及制造、医疗、教育、金融、零售、法律、人力、农业、物流、建筑等行业，用「真需求」框架过滤伪需求；30 分以下不展示，每天把 Top 20 推送到 Telegram。
 - **按需探讨（深）**：在 Telegram 里直接跟它对话——「第 3 条深挖」「为什么有人愿掏钱」，带当天榜单上下文来回聊。
 
 推送 + 对话都在一个 Telegram 机器人里，进程常驻 Mac mini，长轮询收发，**不需要公网服务器**。

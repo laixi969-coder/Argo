@@ -25,6 +25,14 @@ def verify(day: str | None = None) -> int:
         url = urlsplit(o.get("url") or "")
         if url.scheme not in {"http", "https"} or not url.netloc:
             raise RuntimeError(f"今日历史第 {i} 条来源 URL 无效")
+        if not o.get("category") or not o.get("industry"):
+            raise RuntimeError(f"今日历史第 {i} 条分类或行业缺失")
+        if o.get("commercial_potential") not in {"高", "中", "低"}:
+            raise RuntimeError(f"今日历史第 {i} 条商业潜力标签无效")
+        if not isinstance(o.get("tags"), list) or not o["tags"]:
+            raise RuntimeError(f"今日历史第 {i} 条标签缺失")
+        if o.get("is_ai_application") is not True:
+            raise RuntimeError(f"今日历史第 {i} 条不是 AI 应用")
     print(f"[ok] 今日历史校验通过：{day}，累计 {len(opps)} 条")
     return len(opps)
 

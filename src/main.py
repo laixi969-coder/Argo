@@ -4,8 +4,8 @@ import secrets
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from src.sources import hackernews, producthunt, reddit, reddit_comments_tikhub, reddit_tikhub, tikhub
-from src import config, dedup, email_report, extract, kv, prefilter, rank, score, store, telegram_report
+from src.sources import futurepedia, github, hackernews, huggingface, industry_cases, producthunt, reddit, reddit_comments_tikhub, reddit_tikhub, tikhub
+from src import config, dedup, email_report, extract, kv, prefilter, rank, score, store, telegram_report, verify_daily
 
 
 SOURCES = {
@@ -14,6 +14,10 @@ SOURCES = {
     "reddit_comments_tikhub": reddit_comments_tikhub.fetch,
     "producthunt": producthunt.fetch,
     "hackernews": hackernews.fetch,
+    "huggingface": huggingface.fetch,
+    "github": github.fetch,
+    "futurepedia": futurepedia.fetch,
+    "industry_cases": industry_cases.fetch,
     "tikhub": tikhub.fetch,
 }
 REPORT = Path(__file__).resolve().parent.parent / "data" / "latest_report.json"
@@ -70,13 +74,17 @@ def _run_unlocked():
     print(f"[漏斗] 去重保鲜 → {len(top)}")
     top = extract.extract_ideas(top)
     # 剔除新闻/段子/公告等非需求内容，再进昂贵的真需求精判（去噪 + 省 LLM 调用）
-    top = [o for o in top if o.get("is_demand", True)]
-    print(f"[漏斗] 剔除非需求(is_demand) → {len(top)}")
+    top = [
+        o for o in top
+        if o.get("is_demand", True) and o.get("is_ai_application", False)
+    ]
+    print(f"[漏斗] 剔除非需求/非 AI 应用 → {len(top)}")
     top = score.score_real_demand(top)
     final = rank.rank(top, n=20)
     print(f"[漏斗] 精判+排序(去伪需求/未知) → {len(final)}")
     _save(final)
     store.append(final)
+    verify_daily.verify()
     dedup.mark_seen(final)  # 结果已存妥即登记去重，不受发送成败影响
     try:
         _deliver(final, missing)

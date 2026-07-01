@@ -1,6 +1,6 @@
 import json
 import pytest
-from src import main
+from src import main, source_catalog
 
 
 def _wire(monkeypatch, tmp_path, sources):
@@ -8,16 +8,19 @@ def _wire(monkeypatch, tmp_path, sources):
     monkeypatch.setattr(main, "SOURCES", sources)
     monkeypatch.setattr(main, "REPORT", tmp_path / "latest_report.json")
     monkeypatch.setattr(main.extract, "extract_ideas",
-                        lambda opps, **k: [dict(o, idea=o["title"]) for o in opps])
+                        lambda opps, **k: [dict(o, idea=o["title"], is_ai_application=True) for o in opps])
     monkeypatch.setattr(main.score, "score_real_demand",
                         lambda opps, **k: [dict(o, verdict="真需求", score=70.0, reason="r") for o in opps])
     monkeypatch.setattr(main.dedup, "filter_fresh", lambda opps, **k: opps)
     monkeypatch.setattr(main.store, "append", lambda final, **k: None)  # 不写真实 data
+    verified = {}
+    monkeypatch.setattr(main.verify_daily, "verify", lambda: verified.update({"called": True}))
     seen = {}
     monkeypatch.setattr(main.dedup, "mark_seen", lambda final: seen.update({"called": final}))
     sent = {}
     monkeypatch.setattr(main, "_deliver",
                         lambda final, missing: sent.update({"final": final, "missing": missing}))
+    sent["verified"] = verified
     return sent, seen
 
 
@@ -32,6 +35,7 @@ def test_run_full_flow_pushes_and_marks(monkeypatch, tmp_path):
     assert len(sent["final"]) == 5
     assert sent["missing"] == []            # 没有缺源
     assert "called" in seen                 # 推送成功后登记了
+    assert sent["verified"]["called"] is True
     saved = json.loads((tmp_path / "latest_report.json").read_text())
     assert len(saved) == 5                  # 存盘了供 bot 读
 
@@ -74,3 +78,14 @@ def test_run_releases_cloud_lock_on_failure(monkeypatch):
     with pytest.raises(RuntimeError, match="boom"):
         main.run()
     assert released and released[0][0] == "daily-pipeline"
+
+
+def test_long_term_outcome_sources_are_registered():
+    assert "huggingface" in main.SOURCES
+    assert "github" in main.SOURCES
+    assert "futurepedia" in main.SOURCES
+    assert "industry_cases" in main.SOURCES
+
+
+def test_source_catalog_matches_runtime_registry():
+    assert set(source_catalog.SOURCES) == set(main.SOURCES)

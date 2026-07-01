@@ -6,7 +6,8 @@ from src import verify_daily
 def test_verify_accepts_real_snapshot(monkeypatch):
     monkeypatch.setattr(verify_daily.store, "load_day", lambda day, **kwargs: [
         {"id": "abc", "date": day, "idea": "真实机会", "score": 80,
-         "url": "https://reddit.com/r/x"}
+         "url": "https://reddit.com/r/x", "category": "AI应用", "industry": "金融",
+         "commercial_potential": "高", "tags": ["发票自动化"], "is_ai_application": True}
     ])
     assert verify_daily.verify("2026-06-30") == 1
 
@@ -33,4 +34,12 @@ def test_verify_rejects_demo_pollution(monkeypatch):
 def test_verify_rejects_malformed_history(monkeypatch, item, message):
     monkeypatch.setattr(verify_daily.store, "load_day", lambda day, **kwargs: [item])
     with pytest.raises(RuntimeError, match=message):
+        verify_daily.verify("2026-06-30")
+
+
+def test_verify_rejects_missing_business_taxonomy(monkeypatch):
+    monkeypatch.setattr(verify_daily.store, "load_day", lambda day, **kwargs: [{
+        "id": "a", "date": day, "idea": "x", "score": 80, "url": "https://x.com",
+    }])
+    with pytest.raises(RuntimeError, match="分类或行业"):
         verify_daily.verify("2026-06-30")

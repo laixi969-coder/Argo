@@ -35,6 +35,20 @@ def get_json(key: str):
     return json.loads(raw) if raw is not None else None
 
 
+def get_many_json(keys: list[str]) -> list:
+    """单次 REST 请求批量读取，避免历史页按天串行访问远端 KV。"""
+    if not keys:
+        return []
+    raws = command("MGET", *(_key(key) for key in keys)) or []
+    out = []
+    for raw in raws:
+        try:
+            out.append(json.loads(raw) if raw is not None else None)
+        except (TypeError, json.JSONDecodeError):
+            out.append(None)
+    return out
+
+
 def set_json(key: str, value, *, ex: Optional[int] = None, nx: bool = False) -> bool:
     args = ["SET", _key(key), json.dumps(value, ensure_ascii=False)]
     if nx:

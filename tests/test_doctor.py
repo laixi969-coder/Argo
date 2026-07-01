@@ -4,8 +4,9 @@ from src import doctor
 def test_missing_required_detects_blanks(monkeypatch):
     monkeypatch.setattr(doctor.config, "get", lambda k, d=None: "")
     miss = doctor.missing_required()
-    assert "TELEGRAM_BOT_TOKEN" in miss
-    assert "PRODUCTHUNT_TOKEN" in miss
+    assert miss == ["LLM_API_KEY"]
+    assert "TELEGRAM_BOT_TOKEN" not in miss
+    assert "PRODUCTHUNT_TOKEN" not in miss
     assert "REDDIT_CLIENT_ID" not in miss  # 可选项不算缺
 
 

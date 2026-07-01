@@ -20,8 +20,8 @@ HISTORY = DEMO_DATA / "history"
 _FAKE = [
     ("reddit", "auto-split freelance invoices", 88, "面向自由职业者的自动发票拆分工具", 84, "真需求", "AI应用"),
     ("producthunt", "AI 会议纪要同步 Notion", 76, "把会议录音自动整理成 Notion 结构纪要", 79, "真需求", "AI应用"),
-    ("reddit", "dog-walking scheduler", 64, "社区遛狗排班与拼单小程序", 62, "待验证", "服务"),
-    ("producthunt", "跨境多平台库存同步", 59, "给跨境卖家的多平台库存实时同步", 71, "真需求", "实体产品"),
+    ("reddit", "AI dog-walking scheduler", 64, "AI 社区遛狗需求预测与排班服务", 62, "待验证", "服务"),
+    ("producthunt", "AI inventory camera", 59, "给跨境卖家的 AI 视觉库存盘点摄像头", 71, "真需求", "实体产品"),
     ("reddit", "voice memo to tasks", 41, "语音备忘自动转结构化待办", 55, "待验证", "AI应用"),
     ("producthunt", "独立站 SEO 内容代写", 47, "面向独立站的 AI SEO 内容批量生成", 49, "伪需求", "虚拟内容"),
 ]
@@ -41,6 +41,7 @@ def _fake_llm(prompt: str) -> str:
                 "wtp_evidence": "已购买类似工具",
                 "frequency_urgency": "每周发生",
                 "missing_evidence": [],
+                "is_ai_application": True,
             }, ensure_ascii=False)
         if score_stage and idea in prompt:         # score 阶段：提炼句 → 结构化 JSON
             return json.dumps({

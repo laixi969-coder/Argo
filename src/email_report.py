@@ -4,6 +4,7 @@ from html import escape
 from urllib.parse import urlsplit
 
 from src import config
+from src.visibility import visible_only
 
 
 def _safe_url(value):
@@ -12,10 +13,14 @@ def _safe_url(value):
 
 
 def render_html(opps, missing_sources):
+    opps = visible_only(opps)
     rows = "".join(
         f"<tr><td>{i + 1}</td><td>{escape(str(o.get('idea', '')))}</td>"
         f"<td>{escape(str(o.get('verdict', '待验证')))}</td>"
         f"<td>{int(o.get('score', 0))}</td>"
+        f"<td>{escape(str(o.get('commercial_potential', '')))}商业潜力</td>"
+        f"<td>{escape(str(o.get('industry', '跨行业')))}</td>"
+        f"<td>{escape('、'.join(str(t) for t in o.get('tags', [])))}</td>"
         f"<td>{escape(str(o.get('demand_evidence', '未提取到证据')))}</td>"
         f"<td>{escape(str(o.get('reason', '')))}</td>"
         f"<td>{escape(str(o.get('next_validation', '补采真实支付证据')))}</td>"
@@ -34,6 +39,7 @@ def render_html(opps, missing_sources):
         else (
             "<table border=1 cellpadding=6 style='border-collapse:collapse'>"
             "<tr><th>#</th><th>产品机会</th><th>判定</th><th>分</th>"
+            "<th>商业潜力</th><th>行业</th><th>标签</th>"
             "<th>原始证据</th><th>判断理由</th><th>下一步验证</th><th>来源</th></tr>"
             f"{rows}</table>"
         )

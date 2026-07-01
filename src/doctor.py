@@ -7,10 +7,10 @@ from src import config
 
 # (env key, 说明, 是否必填发车)
 CHECKS = [
-    ("TELEGRAM_BOT_TOKEN", "Telegram 机器人 token（@BotFather）", True),
-    ("TELEGRAM_CHAT_ID", "你本人的 chat id（@userinfobot）", True),
+    ("TELEGRAM_BOT_TOKEN", "Telegram 推送（可选；不影响网站更新）", False),
+    ("TELEGRAM_CHAT_ID", "Telegram 接收人（可选）", False),
     ("LLM_API_KEY", "大模型 key（中转站 xingyuzhida）", True),
-    ("PRODUCTHUNT_TOKEN", "Product Hunt token", True),
+    ("PRODUCTHUNT_TOKEN", "Product Hunt 产品源（可选；其它公开源仍可运行）", False),
     ("REDDIT_CLIENT_ID", "Reddit 源（可选，缺了只用 PH）", False),
     ("REDDIT_CLIENT_SECRET", "Reddit 源（可选）", False),
     ("LLM_BASE_URL", "大模型地址（有默认）", False),
@@ -35,7 +35,7 @@ def report() -> bool:
     print("-" * 56)
     if not miss:
         print("✅ 必填项齐全，可以发车：")
-        print("   1) python3 -m src.main   # 抓源+推日报")
+        print("   1) python3 -m src.main   # 抓源+更新网站；已配置渠道时同步推送")
         print("   2) python3 -m src.bot    # 启动探讨")
         return True
     print(f"❌ 还差 {len(miss)} 个必填：{', '.join(miss)}")

@@ -1,16 +1,20 @@
 import json
 import urllib.request
 from src import config
+from src.visibility import visible_only
 
 
 def _card(opps: list[dict], missing_sources: list[str]) -> dict:
     """渲染飞书交互卡片：标题 + 每条机会一段 + 缺源提醒。"""
+    opps = visible_only(opps)
     if not opps:
         lines = ["**今日无机会入榜。**"]
     else:
         lines = [
             f"**{i + 1}. [{o['idea']}]({o['url']})**  ·  "
             f"{o['verdict']} · {int(o['score'])}分 · {o['source']}\n"
+            f"{o.get('commercial_potential', '')}商业潜力 · {o.get('industry', '跨行业')} · "
+            f"{' '.join('#' + str(t) for t in o.get('tags', [])[:3])}\n"
             f"{o['reason']}"
             for i, o in enumerate(opps)
         ]

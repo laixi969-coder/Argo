@@ -1,6 +1,6 @@
 import requests
 from src import config
-from src.sources.demand_keywords import KEYWORDS  # 跨平台共用需求词库
+from src.sources.demand_keywords import INDUSTRIAL_AI_KEYWORDS, KEYWORDS  # 跨平台共用需求词库
 
 _PER_KEYWORD = 10  # 每个关键词抓多少条，控制 credit 消耗
 
@@ -74,6 +74,8 @@ def fetch() -> list[dict]:
         for p in posts:
             if p["url"] not in seen:
                 seen.add(p["url"])
+                if kw in INDUSTRIAL_AI_KEYWORDS:
+                    p["discovery_theme"] = "AI × 工业"
                 out.append(p)
 
     return out

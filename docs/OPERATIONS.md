@@ -8,7 +8,7 @@
 ```
 GitHub Actions（每天 07:00 / 13:00 / 19:00 北京，仅 daily.yml）
    → python -m src.main
-       → 多源抓取：Reddit · Product Hunt 成果产品池 · Hacker News 今日首页/需求搜索/历史 Show HN 成果池 · TikTok
+       → 多源抓取：Reddit · Product Hunt/Futurepedia 成果产品池 · Hacker News 今日首页/需求搜索/历史 Show HN 成果池 · Hugging Face 可运行 Demo · GitHub Agent/MCP/工业 AI 开源成果 · AI 行业应用专线 · TikTok
        → prefilter(60) → dedup(去重已见) → extract(LLM出中文机会) → score(/req真需求打分) → rank(20)
        → store.append → 写入 Upstash KV（history:{日期} + history:days 索引）
    Vercel 站点(argo-woad.vercel.app) 每次访问实时读 KV → 渲染机会卡片
@@ -30,6 +30,8 @@ GitHub Actions（每天 07:00 / 13:00 / 19:00 北京，仅 daily.yml）
 | 超管邮箱 / 舰长登舱凭据（`ARGO_ADMIN_EMAIL` / `ADMIN_EMAIL` / `ADMIN_PASSWORD_HASH`） | **Vercel 环境变量** | Vercel → Settings → Environment Variables |
 | 定时频率、超时 | `.github/workflows/daily.yml` | 改 cron / timeout-minutes |
 | 需求词库、每源条数 | `src/sources/demand_keywords.py`、各源 `_PER_KEYWORD`、`rank n` | 改代码 |
+
+Hugging Face Spaces 与 GitHub Agent/MCP/工业 AI 已注册在 `src.main.SOURCES`，不需要额外 key；每次本地 launchd 或 GitHub Actions 执行 `python -m src.main` 都会重新抓取，不是一次性导入。
 
 > 注意：`config.get()` 读取顺序 = **KV 覆盖优先，其次环境变量**。本地 `.env` 经 `config._load_env` 注入环境变量。
 

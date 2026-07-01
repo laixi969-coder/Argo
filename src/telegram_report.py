@@ -3,6 +3,7 @@
 接口与原邮件模块一致：send_report(opps, missing)。
 """
 from src import telegram
+from src.visibility import visible_only
 
 esc = telegram.esc
 
@@ -13,6 +14,10 @@ _SOURCE_LABELS = {
     "reddit": "Reddit",
     "producthunt": "Product Hunt",
     "hackernews": "Hacker News",
+    "huggingface": "Hugging Face",
+    "github": "GitHub",
+    "futurepedia": "Futurepedia",
+    "industry_cases": "AI 行业应用",
     "tikhub": "TikTok",
 }
 
@@ -27,19 +32,38 @@ def _edge(o: dict) -> str:
     return f" · 🎯{esc(edge)}" if edge and edge != "未知" else ""
 
 
+def _labels(o: dict) -> str:
+    parts = []
+    potential = str(o.get("commercial_potential") or "").strip()
+    if potential in {"高", "中", "低"}:
+        parts.append(f"{potential}商业潜力")
+    if o.get("industry") and o.get("industry") != "跨行业":
+        parts.append(str(o["industry"]))
+    parts.extend(f"#{tag}" for tag in (o.get("tags") or [])[:3])
+    return " · ".join(esc(part) for part in parts)
+
+
+def _item(o: dict, number: int) -> str:
+    lines = [
+        f"<b>{number}. {esc(o['idea'])}</b>",
+        f"{esc(o['verdict'])} · {int(o['score'])}分 · "
+        f"<a href=\"{telegram.attr(telegram.safe_url(o.get('url', '')))}\">"
+        f"{esc(_label(o['source']))}</a>{_edge(o)}",
+    ]
+    labels = _labels(o)
+    if labels:
+        lines.append(labels)
+    lines.append(esc(o["reason"]))
+    return "\n".join(lines)
+
+
 def render(opps: list[dict], missing_sources: list[str]) -> str:
+    opps = visible_only(opps)
     head = f"<b>金羊毛 Argo · 今日选品 Top {len(opps)}</b>"
     if not opps:
         body = "今日无机会入榜。"
     else:
-        body = "\n\n".join(
-            f"<b>{i + 1}. {esc(o['idea'])}</b>\n"
-            f"{esc(o['verdict'])} · {int(o['score'])}分 · "
-            f"<a href=\"{telegram.attr(telegram.safe_url(o.get('url', '')))}\">{esc(_label(o['source']))}</a>"
-            f"{_edge(o)}\n"
-            f"{esc(o['reason'])}"
-            for i, o in enumerate(opps)
-        )
+        body = "\n\n".join(_item(o, i + 1) for i, o in enumerate(opps))
     tail = f"\n\n⚠️ 今天这些源没抓到：{esc('，'.join(missing_sources))}" if missing_sources else ""
     foot = "\n\n<i>想深挖哪条，直接回我「第 N 条」。</i>"
     return f"{head}\n\n{body}{tail}{foot}"

@@ -6,7 +6,8 @@ def test_load_report_formats_lines(tmp_path, monkeypatch):
     rpt = tmp_path / "latest_report.json"
     rpt.write_text(json.dumps([
         {"idea": "发票工具", "verdict": "真需求", "score": 80,
-         "reason": "刚需", "url": "http://x", "source": "reddit"}
+         "reason": "刚需", "url": "http://x", "source": "reddit",
+         "is_ai_application": True}
     ]))
     monkeypatch.setattr(agent, "REPORT", rpt)
     out = agent.load_report()
@@ -22,7 +23,8 @@ def test_handle_message_discusses_with_context(tmp_path, monkeypatch):
     rpt = tmp_path / "latest_report.json"
     rpt.write_text(json.dumps([
         {"idea": "宠物排班器", "verdict": "真需求", "score": 64,
-         "reason": "r", "url": "http://x", "source": "reddit"}
+         "reason": "r", "url": "http://x", "source": "reddit",
+         "is_ai_application": True}
     ]))
     monkeypatch.setattr(agent, "REPORT", rpt)
     monkeypatch.setattr(agent, "CHAT_LOG", tmp_path / "chat.jsonl")

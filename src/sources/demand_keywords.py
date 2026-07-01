@@ -1,6 +1,6 @@
 """需求信号词库：跨平台（TikTok / Reddit / HackerNews）共用，挖"明说想要/愿付钱"的帖子。
 
-13 个按信号强度分档的完整需求短语（付费意愿 > 召唤建造 > 求解缺口 > 痛点 > AI 专项）。
+按信号强度分档的完整需求短语（付费意愿 > 召唤建造 > 求解缺口 > 痛点 > AI / 工业专项）。
 刻意放宽 app→tool/service 以覆盖实体/服务/AI 机会。评论区"抱怨型痛点"另见 pain_keywords.py。
 """
 
@@ -28,4 +28,12 @@ KEYWORDS = [
     "there has to be a better way",
     # AI 专项
     "is there an AI that",
+    # AI × 工业：工业现场的损失通常直接可量化，单列检索避免被消费 AI 淹没
+    "AI predictive maintenance manufacturing",
+    "computer vision quality inspection factory",
+    "AI factory energy optimization",
+    "industrial AI production scheduling",
 ]
+
+
+INDUSTRIAL_AI_KEYWORDS = set(KEYWORDS[-4:])

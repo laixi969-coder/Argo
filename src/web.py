@@ -22,12 +22,16 @@ from datetime import date
 from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from src import clock, config, agent, telegram, store, auth, users, plans, billing, saved, mailer, admin, kv
+from src import taxonomy
+from src import source_catalog
+from src.visibility import is_visible, visible_only
 
 STATIC = Path(__file__).resolve().parent.parent / "static"
 _req_user: contextvars.ContextVar = contextvars.ContextVar("req_user", default=None)
 
 PAGE_SIZE = 8
-CATS = ["全部", "实体产品", "AI应用", "虚拟内容", "服务"]
+CATS = ["全部", *taxonomy.CATEGORIES]
+INDUSTRIES = ["全部行业", *taxonomy.INDUSTRIES]
 esc = telegram.esc
 aesc = telegram.attr  # 属性安全转义（href/src/value）
 
@@ -129,7 +133,7 @@ h1.ttl{font-size:26px;font-weight:800;letter-spacing:-0.5px;margin:0;font-family
 }
 .tabs a:hover{background:rgba(227,169,72,.14);color:var(--gold)}
 .tabs a.on{background:var(--gold);color:#1a1108;font-weight:700;border-color:var(--gold)}
-.search{display:flex;gap:8px}
+.search,.industry-filter{display:flex;gap:8px;align-items:center}
 .search input{
   border:1px solid var(--line);
   border-radius:4px;
@@ -155,6 +159,11 @@ h1.ttl{font-size:26px;font-weight:800;letter-spacing:-0.5px;margin:0;font-family
   transition:var(--transition);
 }
 .search button:hover{background:var(--goldbright)}
+.industry-filter label{font-size:12px;color:var(--muted);font-weight:700}
+.industry-filter select{
+  border:1px solid var(--line);border-radius:4px;padding:8px 12px;background:var(--card);
+  color:var(--ink);font:600 13px/1.2 var(--font-sans);min-width:132px
+}
 .daygrp{display:flex;align-items:center;gap:8px;margin:36px 0 16px;font-size:12.5px;color:var(--muted);font-weight:700;letter-spacing:0.5px;text-transform:uppercase}
 .daygrp:first-of-type{margin-top:24px}
 .row{display:flex;gap:0}
@@ -193,6 +202,11 @@ h3 a:hover{color:var(--gold)}
 .tag.v{color:var(--green-text);background:var(--green-bg);border-color:var(--green-text)}
 .tag.vf{color:var(--red-text);background:var(--red-bg);border-color:var(--red-text)}
 .tag.vw{color:var(--amber-text);background:var(--amber-bg);border-color:var(--amber-text)}
+.tag.ph{color:var(--green-text);background:var(--green-bg);border-color:var(--green-text)}
+.tag.pm{color:var(--amber-text);background:var(--amber-bg);border-color:var(--amber-text)}
+.tag.pl{color:var(--muted);background:var(--rec);border-color:var(--line)}
+.microtags{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.microtags .tag{font-size:10.5px;padding:2px 8px}
 .rec{color:var(--soft);margin-top:12px;font-size:14px;line-height:1.65;border-top:1px dashed var(--line);padding-top:12px}
 .rec b{color:var(--gold);font-weight:700}
 .pager{display:flex;justify-content:center;align-items:center;gap:20px;margin:44px 0 12px;font-size:14px}
@@ -527,7 +541,8 @@ html[data-theme=light]{
 }
 """
 
-_NAV = [("内容", [("/", "精选"), ("/all", "全部机会"), ("/daily", "AI 日报"), ("/saved", "我的收藏")]),
+_NAV = [("内容", [("/", "精选"), ("/all", "全部 AI 应用"), ("/daily", "AI 日报"), ("/saved", "我的收藏")]),
+        ("雷达", [("/sources", "长期信息源")]),
         ("接入", [("/agent", "Agent 接入")]),
         ("更多", [("/feedback", "反馈"), ("/settings", "舰长设置")])]
 
@@ -575,6 +590,35 @@ def _type_tag(o: dict) -> str:
     return f'<span class=tag>{esc(kind)}</span>' if kind else ""
 
 
+def _potential_label(o: dict) -> str:
+    value = str(o.get("commercial_potential") or "").strip()
+    return f"{value}商业潜力" if value in taxonomy.COMMERCIAL_POTENTIALS else ""
+
+
+def _potential_tag(o: dict) -> str:
+    value = str(o.get("commercial_potential") or "").strip()
+    if value not in taxonomy.COMMERCIAL_POTENTIALS:
+        return ""
+    css = {"高": "ph", "中": "pm", "低": "pl"}[value]
+    return f'<span class="tag {css}">{esc(_potential_label(o))}</span>'
+
+
+def _industry_tag(o: dict) -> str:
+    industry = str(o.get("industry") or "").strip()
+    if not industry or industry == "跨行业":
+        return ""
+    return f'<span class=tag>{esc(industry)}</span>'
+
+
+def _keyword_tags(o: dict, limit: int = 3) -> str:
+    tags = taxonomy.normalize_tags(o.get("tags"))[:limit]
+    if not tags:
+        return ""
+    return '<div class=microtags>' + "".join(
+        f'<span class=tag>#{esc(tag)}</span>' for tag in tags
+    ) + '</div>'
+
+
 def _is_super_admin() -> bool:
     u = _req_user.get()
     admin_email = (config.get("ARGO_ADMIN_EMAIL") or "").strip().lower()
@@ -612,12 +656,33 @@ def _acct_block() -> str:
             '<div class=plan><a href="/login">已有账号？登录</a></div>')
 
 
-def _toolbar(cur_cat: str, q: str) -> str:
+def _toolbar(cur_cat: str, q: str, cur_industry: str = "全部行业") -> str:
+    def cat_url(category: str) -> str:
+        params = {}
+        if category != "全部":
+            params["cat"] = category
+        if cur_industry != "全部行业":
+            params["industry"] = cur_industry
+        return "/all" + ("?" + urllib.parse.urlencode(params) if params else "")
+
     tabs = "".join(
-        f'<a href="/all{"" if c=="全部" else "?cat="+urllib.parse.quote(c)}" '
+        f'<a href="{aesc(cat_url(c))}" '
         f'class="{"on" if c == cur_cat else ""}">{c}</a>' for c in CATS)
+    options = "".join(
+        f'<option value="{aesc(i)}"{" selected" if i == cur_industry else ""}>{esc(i)}</option>'
+        for i in INDUSTRIES
+    )
+    hidden_cat = f'<input type=hidden name=cat value="{aesc(cur_cat)}">' if cur_cat != "全部" else ""
+    hidden_q = f'<input type=hidden name=q value="{aesc(q)}">' if q else ""
+    search_hidden = (
+        f'<input type=hidden name=industry value="{aesc(cur_industry)}">'
+        if cur_industry != "全部行业" else ""
+    )
     return f"""<div class=toolbar><div class=tabs>{tabs}</div>
+<form class=industry-filter action="/all" method=get>{hidden_cat}{hidden_q}
+<label for=industry>行业</label><select id=industry name=industry onchange="this.form.submit()">{options}</select></form>
 <form class=search action="/all" method=get>
+{hidden_cat}{search_hidden}
 <input name=q value="{aesc(q)}" aria-label="搜索机会" placeholder="搜索机会 / 理由 / 来源…">
 <button type=submit>搜索</button></form></div>"""
 
@@ -648,15 +713,21 @@ def _card(o: dict, rank: int) -> str:
 <article>
 <div class=meta><span class=src>{esc(o.get('source',''))}</span>
 <span class="{_vclass(o.get('verdict',''))}">{esc(o.get('verdict',''))}</span>
-{_type_tag(o)}{_cat_tag(o)}</div>
+{_potential_tag(o)}{_type_tag(o)}{_cat_tag(o)}{_industry_tag(o)}</div>
 <h3><a href="/items/{aesc(o.get('id',''))}">{esc(o.get('idea',''))}</a></h3>
 <p class=summary>{esc(_hook(o))}</p>
+{_keyword_tags(o)}
 <div class=rec><b>推荐理由：</b>{esc(o.get('reason',''))}</div>
 </article></div>"""
 
 
 def _feed(opps: list[dict], start: int = 1) -> str:
     return "".join(_card(o, start + i) for i, o in enumerate(opps))
+
+
+def _visible_days() -> list[tuple[str, list[dict]]]:
+    """对所有网页入口统一执行 30 分展示门槛，兼容历史旧数据。"""
+    return [(day, visible_only(opps)) for day, opps in store.load_days()]
 
 
 _LAND_CSS = """
@@ -765,7 +836,7 @@ _LAND_JS = """
 
 def _landing() -> str:
     # 今日机会前 3 条做预览（FOMO）
-    days = store.load_days()
+    days = _visible_days()
     teaser = ""
     if days:
         _, opps = days[0]
@@ -837,14 +908,14 @@ def _landing() -> str:
 
 
 def _featured(welcome: bool = False) -> str:
-    days = store.load_days()
+    days = _visible_days()
     wb = ('<div class=welcome><b>欢迎来到金羊毛 Argo</b>'
           '每条机会都判过「值不值得做」，点进去看痛点、谁买单、怎么变现。'
           '想深挖某条？详情页直接问 Argo。</div>') if welcome else ''
     head = (wb + '<h1 class=ttl>精选</h1><p class=sub>有人在痛 + 有人愿掏钱 · AI 筛出的产品机会</p>'
             '<p class=legend>每条左侧是「机会分」：AI 按真需求框架打分，满分 100，越高越值得做。</p>'
             '<div class=hr></div>')
-    head += _toolbar("全部", "")
+    head += _toolbar("全部", "", "全部行业")
     if not days:
         return _page("金羊毛 Argo", head + '<div class=empty><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><b>流水线还没跑</b>跑一次 <code>python3 -m src.main</code> 就有数据了</div>', "/")
     day, opps = days[0]
@@ -858,27 +929,36 @@ def _featured(welcome: bool = False) -> str:
 
 def _all(query: dict) -> str:
     cat = (query.get("cat", [""])[0]) or "全部"
+    industry = (query.get("industry", [""])[0]) or "全部行业"
+    cat = cat if cat in CATS else "全部"
+    industry = industry if industry in INDUSTRIES else "全部行业"
     q = (query.get("q", [""])[0]).strip()
     try:
         page = max(1, int(query.get("page", ["1"])[0]))
     except ValueError:
         page = 1
-    # 当前免费形态：所有用户都能浏览完整历史。
-    acc = _accessible_ids(_req_user.get())
-    flat = [o for o in store.load_flat() if o.get("id", "") in acc]
+    # 当前免费形态：所有用户都能浏览完整历史，无需重复读取并构造权限集合。
+    flat = visible_only(store.load_flat())
     if cat != "全部":
         flat = [o for o in flat if o.get("category") == cat]
+    if industry != "全部行业":
+        flat = [o for o in flat if o.get("industry") == industry]
     if q:
         ql = q.lower()
-        flat = [o for o in flat if ql in (o.get("idea", "") + o.get("reason", "")
-                                          + o.get("source", "")).lower()]
+        flat = [o for o in flat if ql in " ".join([
+            str(o.get("idea") or ""), str(o.get("reason") or ""),
+            str(o.get("source") or ""), str(o.get("industry") or ""),
+            " ".join(o.get("tags") or []),
+        ]).lower()]
     total = len(flat)
     pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
     page = min(page, pages)
     chunk = flat[(page - 1) * PAGE_SIZE: page * PAGE_SIZE]
 
     title = f'搜索「{esc(q)}」' if q else ('全部机会' if cat == '全部' else cat)
-    body = f'<h1 class=ttl>{title}</h1><p class=sub>共 {total} 条</p><div class=hr></div>' + _toolbar(cat, q)
+    if industry != "全部行业" and not q:
+        title += f" · {esc(industry)}"
+    body = f'<h1 class=ttl>{title}</h1><p class=sub>共 {total} 条</p><div class=hr></div>' + _toolbar(cat, q, industry)
     if not chunk:
         body += '<div class=empty><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><b>没有匹配的机会</b>试试换个关键词或清掉筛选条件</div>'
     else:
@@ -889,7 +969,11 @@ def _all(query: dict) -> str:
                 body += f'<h2 class=daygrp>{esc(cur_day or "")} {_weekday(cur_day or "")}</h2>'
             n += 1
             body += _card(o, (page - 1) * PAGE_SIZE + n)
-    extra = (f"&cat={urllib.parse.quote(cat)}" if cat != "全部" else "") + (f"&q={urllib.parse.quote(q)}" if q else "")
+    pager_params = {}
+    if cat != "全部": pager_params["cat"] = cat
+    if industry != "全部行业": pager_params["industry"] = industry
+    if q: pager_params["q"] = q
+    extra = "&" + urllib.parse.urlencode(pager_params) if pager_params else ""
     prev = f'<a href="/all?page={page-1}{extra}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 2px;"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>上一页</a>' if page > 1 else '<span>上一页</span>'
     nxt = f'<a href="/all?page={page+1}{extra}">下一页<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-left: 2px;"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></a>' if page < pages else '<span>下一页</span>'
     body += f'<div class=pager>{prev}<span>{page} / {pages}</span>{nxt}</div>'
@@ -898,11 +982,19 @@ def _all(query: dict) -> str:
 
 def _detail(item_id: str) -> tuple[int, str]:
     o = store.get(item_id)
-    if not o:
+    if not o or not is_visible(o):
         return 404, _page("未找到", '<a class=back href="/all"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 2px;"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>返回</a><div class=empty><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><b>没有这条机会</b>可能已被移除或 ID 有误</div>', "")
     safe_link = telegram.safe_url(o.get("url", ""))
     domain = urllib.parse.urlsplit(safe_link).netloc or "原文"
-    tags = "".join(f'<span class=tag>{esc(t)}</span>' for t in [o.get("category", "未分类")])
+    detail_labels = [
+        _potential_label(o), o.get("category"), o.get("industry"),
+        o.get("opportunity_type"), *(o.get("tags") or []),
+    ]
+    tags = "".join(
+        f'<span class=tag>{esc(t)}</span>'
+        for t in dict.fromkeys(str(x).strip() for x in detail_labels)
+        if t and t not in {"跨行业", "未分类"}
+    )
     body = f"""<div class=dtop><a class=back href="/all"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 2px;"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>返回</a>{_save_btn(o)}</div>
 <div class=dhead style="margin-top:18px">{esc(o.get('source',''))} · {esc(o.get('date',''))}
 &nbsp;&nbsp;<span class="{_vclass(o.get('verdict',''))}">{esc(o.get('verdict',''))}</span>
@@ -971,7 +1063,8 @@ async function argoAsk(){{
 
 def _analysis(o: dict) -> str:
     """详情页核心：站在决策者视角的结构化分析。空字段不渲染。"""
-    items = [("痛点", o.get("pain")), ("谁愿意付费", o.get("buyer")),
+    items = [("商业证据", o.get("commercial_evidence")),
+             ("痛点", o.get("pain")), ("谁愿意付费", o.get("buyer")),
              ("变现路径", o.get("money")), ("商业切入点", o.get("angle")),
              ("风险", o.get("risk"))]
     rows = "".join(
@@ -983,7 +1076,7 @@ def _analysis(o: dict) -> str:
 
 
 def _daily() -> str:
-    days = store.load_days()
+    days = _visible_days()
     head = '<h1 class=ttl>AI 日报</h1><p class=sub>当日机会精简清单，适合通读</p><div class=hr></div>'
     if not days:
         return _page("金羊毛 Argo · 日报", head + '<div class=empty><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><b>今天还没出日报</b>流水线跑完后会自动生成</div>', "/daily")
@@ -993,6 +1086,8 @@ def _daily() -> str:
         f'<div><a href="/items/{aesc(o.get("id",""))}"><b>{esc(o.get("idea",""))}</b></a>'
         f' <span class="{_vclass(o.get("verdict",""))}">{esc(o.get("verdict",""))}</span>'
         f' <span class=dscore>{int(o.get("score",0))}分</span>'
+        f' <span class="tag {"ph" if o.get("commercial_potential")=="高" else "pm"}">{esc(_potential_label(o))}</span>'
+        f' <span class=tag>{esc(o.get("industry", "跨行业"))}</span>'
         f'<div class=dreason>{esc(o.get("reason",""))}</div></div></div>'
         for i, o in enumerate(all_opps))
     empty = ('<div class=empty><b>今天暂时没有通过真需求筛选的新机会</b>'
@@ -1008,6 +1103,24 @@ def _feedback() -> str:
 <p>你的每一次收藏、深挖、停留，都在帮 Argo 把判断磨得更准。</p>
 <p>有想法或问题，欢迎随时告诉我们。</p>"""
     return _page("金羊毛 Argo · 反馈", body, "/feedback")
+
+
+def _sources_page() -> str:
+    rows = "".join(
+        f'<div class=item><div class=lab>{esc(label)}</div>'
+        f'<div class=txt>{esc(purpose)} · {esc(access)}</div></div>'
+        for label, purpose, access in source_catalog.SOURCES.values()
+    )
+    times = " / ".join(source_catalog.SCHEDULE)
+    body = (
+        '<h1 class=ttl>长期信息源</h1>'
+        f'<p class=sub>北京时间每天 {esc(times)} 自动扫描；单一来源失败不会中断整条流水线。</p>'
+        '<div class=hr></div>'
+        f'<div class=ana>{rows}</div>'
+        '<div class=rec><b>筛选规则：</b>所有内容先经过证据提取与真需求判断；'
+        '30 分以下不展示，成果产品与不同行业分别保留公平席位。</div>'
+    )
+    return _page("金羊毛 Argo · 长期信息源", body, "/sources")
 
 
 def _auth_bare(title: str, body: str) -> str:
@@ -1095,7 +1208,10 @@ def _saved_page() -> str:
     u = _req_user.get()
     if not u:
         return _page("金羊毛 Argo · 收藏", '<p class=empty>请先 <a href="/login">登录</a>。</p>', "/saved")
-    opps = [o for o in (store.get(i) for i in saved.list_ids(u["id"])) if o]
+    opps = [
+        o for o in (store.get(i) for i in saved.list_ids(u["id"]))
+        if o and is_visible(o)
+    ]
     head = '<h1 class=ttl>我的收藏</h1><div class=hr></div>'
     if not opps:
         body = head + '<div class=empty><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg><b>还没收藏</b>在机会详情页点「收藏」存下值得做的方向</div>'
@@ -1167,7 +1283,7 @@ def _agent_page() -> str:
 
 
 def _opps_today() -> list[dict]:
-    return store.load_day(clock.today_iso()) or []
+    return visible_only(store.load_day(clock.today_iso()) or [])
 
 
 def _with_opp_context(text: str, item_id) -> str:
@@ -1175,9 +1291,11 @@ def _with_opp_context(text: str, item_id) -> str:
     if not item_id:
         return text
     o = store.get(item_id)
-    if not o:
+    if not o or not is_visible(o):
         return text
     fields = [("机会", o.get("idea")), ("判定", o.get("verdict")),
+              ("商业潜力", _potential_label(o)), ("行业", o.get("industry")),
+              ("标签", "、".join(o.get("tags") or [])),
               ("痛点", o.get("pain")), ("谁愿意付费", o.get("buyer")),
               ("变现路径", o.get("money")), ("切入点", o.get("angle")),
               ("风险", o.get("risk"))]
@@ -1187,7 +1305,7 @@ def _with_opp_context(text: str, item_id) -> str:
 
 def _accessible_ids(user) -> set:
     """当前免费产品对所有用户开放全部历史机会。"""
-    return {o.get("id", "") for o in store.load_flat()}
+    return {o.get("id", "") for o in visible_only(store.load_flat())}
 
 
 def _gated_today() -> list[dict]:
@@ -1257,7 +1375,8 @@ def route(method: str, raw_path: str, body: bytes, headers: dict) -> tuple[int, 
             iid = json.loads(body or b"{}").get("item_id", "")
         except Exception:
             iid = ""
-        if not iid or not store.get(iid):
+        target = store.get(iid) if iid else None
+        if not target or not is_visible(target):
             return 400, J, json.dumps({"error": "无效机会"}, ensure_ascii=False)
         return 200, J, json.dumps({"saved": saved.toggle(u["id"], iid)})
     if method == "GET" and path == "/all":
@@ -1268,6 +1387,8 @@ def route(method: str, raw_path: str, body: bytes, headers: dict) -> tuple[int, 
         return 200, H, _agent_page()
     if method == "GET" and path == "/feedback":
         return 200, H, _feedback()
+    if method == "GET" and path == "/sources":
+        return 200, H, _sources_page()
     if method == "GET" and path.startswith("/items/"):
         status, html = _detail(path[len("/items/"):])
         return status, H, html

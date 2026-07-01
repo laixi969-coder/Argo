@@ -9,7 +9,8 @@
 import json
 import hashlib
 from pathlib import Path
-from src import clock, kv, llm, store, bot_admin as admin
+from src import clock, kv, llm, store, taxonomy, bot_admin as admin
+from src.visibility import visible_only
 
 DATA = Path(__file__).resolve().parent.parent / "data"
 REPORT = DATA / "latest_report.json"
@@ -29,9 +30,12 @@ def load_report() -> str:
     if opps is None:
         if not REPORT.exists():
             return "（今天还没有榜单，可能流水线还没跑。）"
-        opps = json.loads(REPORT.read_text())
+        opps = [taxonomy.enrich(dict(o)) for o in json.loads(REPORT.read_text())]
+    opps = visible_only(opps)
     return "\n".join(
-        f"{i + 1}. {o['idea']} | {o['verdict']} {int(o['score'])}分 | {o['reason']} | {o['url']}"
+        f"{i + 1}. {o['idea']} | {o['verdict']} {int(o['score'])}分 | "
+        f"{o.get('commercial_potential', '')}商业潜力 | {o.get('industry', '跨行业')} | "
+        f"标签:{'、'.join(o.get('tags') or [])} | {o['reason']} | {o['url']}"
         for i, o in enumerate(opps)
     ) or "（今天无机会入榜。）"
 
