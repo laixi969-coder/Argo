@@ -86,6 +86,18 @@ def _evidence_summary(opp):
     return "；".join(facts) if facts else "未发现可核验的行为或付费证据"
 
 
+def _product_pool_idea(o: dict) -> str:
+    """成果池兜底标题：保留产品供研究，不把存在本身冒充付费验证。"""
+    title = str(o.get("title") or "").strip()
+    if title.lower().startswith("show hn:"):
+        title = title.split(":", 1)[1].strip()
+    tagline = next((line.strip() for line in str(o.get("raw_text") or "").splitlines()
+                    if line.strip()), "")
+    if not title:
+        return ""
+    return f"{title}：{tagline[:160]}" if tagline and tagline != title else title
+
+
 def extract_ideas(opps, llm=call_llm):
     # 逐条独立，可并发；总耗时从「条数×单次」压到约 1/并发数
     with ThreadPoolExecutor(max_workers=_CONCURRENCY) as pool:
@@ -129,10 +141,20 @@ def _extract_one(o, llm):
             o[field] = "未知"
         o["missing_evidence"] = ["证据提取调用失败"]
         o["is_demand"] = True
+    if (o.get("opportunity_type") == "已有成果产品"
+            and str(o.get("idea", "")).strip() in {"", "未知"}):
+        fallback = _product_pool_idea(o)
+        if fallback:
+            o["idea"] = fallback
+            o["missing_evidence"] = [
+                *o.get("missing_evidence", []),
+                "成果池仅提供产品描述，仍需补采真实付费与复购证据",
+            ]
+            o["is_demand"] = True
     # Product Hunt 是结构化产品目录；或原文已提取出市场验证证据时，应进入
     # 后续评分。Show HN 仍需先说清用户任务，避免把玩笑项目当成果产品。
     proof = str(o.get("market_proof", "")).strip().lower()
-    if ((o.get("source") == "producthunt"
+    if ((o.get("opportunity_type") == "已有成果产品"
          or proof not in {"", "无", "未知", "没有", "none", "null", "n/a"})
             and str(o.get("idea", "")).strip() not in {"", "未知"}):
         o["is_demand"] = True

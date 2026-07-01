@@ -105,3 +105,19 @@ def test_producthunt_product_is_not_dropped_as_a_generic_announcement():
     out = extract_ideas(opps, llm=lambda p: resp)
 
     assert out[0]["is_demand"] is True
+
+
+def test_historical_product_pool_falls_back_to_product_title_instead_of_disappearing():
+    resp = '{"is_demand": false, "idea": "未知", "customer": "未知"}'
+    opps = [{
+        "source": "hackernews",
+        "opportunity_type": "已有成果产品",
+        "title": "Show HN: Redbean single-file web server",
+        "raw_text": "A distributable web server",
+    }]
+
+    out = extract_ideas(opps, llm=lambda p: resp)
+
+    assert out[0]["is_demand"] is True
+    assert out[0]["idea"].startswith("Redbean single-file web server")
+    assert "付费与复购" in out[0]["missing_evidence"][-1]
