@@ -28,6 +28,16 @@ from src.visibility import is_visible, visible_only
 
 STATIC = Path(__file__).resolve().parent.parent / "static"
 _req_user: contextvars.ContextVar = contextvars.ContextVar("req_user", default=None)
+_req_base: contextvars.ContextVar = contextvars.ContextVar("req_base", default="")
+
+
+def _base() -> str:
+    """站点绝对根 URL：SEO 只信配置，避免 Host header 污染。"""
+    return (config.get("ARGO_PUBLIC_URL", "") or "").rstrip("/")
+
+
+def _jsonld(data: dict) -> str:
+    return json.dumps(data, ensure_ascii=False).replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026")
 
 PAGE_SIZE = 8
 CATS = ["全部", *taxonomy.CATEGORIES]
@@ -690,13 +700,22 @@ def _toolbar(cur_cat: str, q: str, cur_industry: str = "全部行业") -> str:
 _DESC = "金羊毛 Argo：每天扫描公开源，筛出有人在痛、有人愿掏钱的产品机会，给出痛点、谁买单、变现路径与切入点。"
 
 
-def _page(title: str, body: str, active: str, desc: str = "") -> str:
+def _page(title: str, body: str, active: str, desc: str = "",
+          canonical: str = "", jsonld: str = "", noindex: bool = False) -> str:
     d = esc(desc or _DESC)
+    base = _base()
+    canon = f'<link rel=canonical href="{aesc(base + canonical)}">' if base and canonical else ""
+    ogurl = f'<meta property="og:url" content="{aesc(base + canonical)}">' if base and canonical else ""
+    robots = '<meta name=robots content="noindex,follow">' if noindex else ""
+    ld = f'<script type="application/ld+json">{jsonld}</script>' if jsonld else ""
     return f"""<!doctype html><html lang=zh><head><meta charset=utf-8>
 <meta name=viewport content="width=device-width,initial-scale=1"><title>{esc(title)}</title>
-<meta name=description content="{d}">
+<meta name=description content="{d}">{canon}{robots}
 <meta property="og:title" content="{esc(title)}"><meta property="og:description" content="{d}">
-<meta property="og:type" content="website"><meta property="og:image" content="/static/logo-on-light.png">
+<meta property="og:type" content="website">{ogurl}<meta property="og:image" content="{aesc(base)}/static/logo-on-light.png">
+<meta property="og:site_name" content="金羊毛 Argo"><meta property="og:locale" content="zh_CN">
+<meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="{esc(title)}">
+<meta name="twitter:description" content="{d}">{ld}
 <meta name="theme-color" content="#160d05">
 <style>{_CSS}</style>
 <script>
@@ -845,11 +864,13 @@ def _landing() -> str:
             f'<span class=sub>满分100</span><span class=dot></span></div><article>'
             f'<div class=meta><span class=src>{esc(o.get("source",""))}</span>'
             f'<span class="{_vclass(o.get("verdict",""))}">{esc(o.get("verdict",""))}</span></div>'
-            f'<h3>{esc(o.get("idea",""))}</h3><p class=summary>{esc(_hook(o))}</p></article></div>'
+            f'<h3><a href="/items/{aesc(o.get("id",""))}" style="color:inherit;text-decoration:none">{esc(o.get("idea",""))}</a></h3>'
+            f'<p class=summary>{esc(_hook(o))}</p></article></div>'
             for o in sorted(opps, key=lambda x: x.get("score", 0), reverse=True)[:3])
         teaser = (f'<section class=lsec id=today><h2>看看今天挖到了什么</h2>'
                   f'<p class=ls>每天清晨更新，已判定值不值得做、怎么变现</p>{rows}'
-                  f'<p style="margin-top:22px"><a class=cta href="/signup">免费注册看全部 →</a></p></section>')
+                  f'<p style="margin-top:22px"><a class=cta href="/daily">看今天全部日报 →</a>'
+                  f' &nbsp; <a href="/all">浏览全部机会库</a></p></section>')
 
     today_count = sum(len(o) for _, o in days[:1]) if days else 0
     total_count = sum(len(o) for _, o in days) if days else 0
@@ -858,7 +879,7 @@ def _landing() -> str:
     body = f"""
 <nav class=lnav>
 <img class="lg" src="/static/logo-on-dark.png" alt="金羊毛 Argo">
-<div class=lr><a href="/login">登录</a><a class=s href="/signup">免费注册</a></div>
+<div class=lr><a href="/daily">日报</a><a href="/all">机会库</a><a href="/login">登录</a><a class=s href="/signup">免费注册</a></div>
 </nav>
 
 <header class=lhero>
@@ -895,10 +916,24 @@ def _landing() -> str:
 
 <div class=lfoot>金羊毛 Argo · 私人产品机会雷达</div>
 """
+    base = _base()
+    ld = _jsonld({
+        "@context": "https://schema.org", "@type": "WebSite",
+        "name": "金羊毛 Argo", "url": base or "/",
+        "description": _DESC, "inLanguage": "zh-CN",
+    })
     return f"""<!doctype html><html lang=zh><head><meta charset=utf-8>
 <meta name=viewport content="width=device-width,initial-scale=1">
-<title>金羊毛 Argo · 每天找到值得做、能赚钱的产品机会</title>
-<meta name=description content="自动扫描公开源，筛出有人在痛、有人愿掏钱的产品机会，给出痛点、变现路径与切入点。">
+<title>金羊毛 Argo · 每天找到值得做、能赚钱的 AI 产品机会</title>
+<meta name=description content="金羊毛 Argo：每天自动扫描 Reddit、Product Hunt、Hacker News、GitHub 等公开源，用真需求框架筛出有人在痛、有人愿掏钱的 AI 应用与产品机会，给出痛点、买单人群、变现路径与切入点。">
+<link rel=canonical href="{aesc(base)}/">
+<meta property="og:title" content="金羊毛 Argo · 每天找到值得做、能赚钱的 AI 产品机会">
+<meta property="og:description" content="每天自动扫描公开源，筛出真需求产品机会：痛点、谁买单、怎么变现。">
+<meta property="og:type" content="website"><meta property="og:url" content="{aesc(base)}/">
+<meta property="og:image" content="{aesc(base)}/static/logo-on-light.png">
+<meta property="og:site_name" content="金羊毛 Argo"><meta property="og:locale" content="zh_CN">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">{ld}</script>
 <style>{_CSS}{_LAND_CSS}</style>
 </head><body>{body}
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
@@ -977,7 +1012,10 @@ def _all(query: dict) -> str:
     prev = f'<a href="/all?page={page-1}{extra}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 2px;"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>上一页</a>' if page > 1 else '<span>上一页</span>'
     nxt = f'<a href="/all?page={page+1}{extra}">下一页<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-left: 2px;"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></a>' if page < pages else '<span>下一页</span>'
     body += f'<div class=pager>{prev}<span>{page} / {pages}</span>{nxt}</div>'
-    return _page("金羊毛 Argo · 全部机会", body, "/all")
+    canon = "/all" if page == 1 else f"/all?page={page}"
+    return _page("金羊毛 Argo · 全部 AI 产品机会库", body, "/all",
+                 desc=f"金羊毛 Argo 机会库：{total} 条经真需求框架判定的 AI 应用与产品机会，按行业与类目浏览，每条含痛点、买单人群、变现路径。",
+                 canonical=canon, noindex=bool(q))
 
 
 def _detail(item_id: str) -> tuple[int, str]:
@@ -1006,7 +1044,16 @@ def _detail(item_id: str) -> tuple[int, str]:
 <div class=rec><b>机会判定：</b>{esc(o.get('reason',''))}</div>
 <details class=raw><summary>原帖摘录</summary>{esc(_excerpt(o, 400))}</details>
 {_deepdive(o)}"""
-    return 200, _page(f"机会 · {o.get('idea','')}", body, "")
+    desc = " ".join(x for x in (o.get("pain"), o.get("reason")) if x)[:150]
+    ld = _jsonld({
+        "@context": "https://schema.org", "@type": "Article",
+        "headline": o.get("idea", ""), "description": desc,
+        "datePublished": o.get("date", ""), "inLanguage": "zh-CN",
+        "author": {"@type": "Organization", "name": "金羊毛 Argo"},
+        "mainEntityOfPage": f"{_base()}/items/{o.get('id','')}",
+    })
+    return 200, _page(f"{o.get('idea','')} · 产品机会分析 · 金羊毛 Argo", body, "",
+                      desc=desc, canonical=f"/items/{o.get('id','')}", jsonld=ld)
 
 
 def _save_btn(o: dict) -> str:
@@ -1093,7 +1140,17 @@ def _daily() -> str:
     empty = ('<div class=empty><b>今天暂时没有通过真需求筛选的新机会</b>'
              '雷达已按计划更新，下一次扫描会继续补充。</div>') if not all_opps else ''
     body = head + f'<h2 class=daygrp>{esc(day)} {_weekday(day)} · {len(all_opps)} 条</h2>{rows}{empty}'
-    return _page("金羊毛 Argo · 日报", body, "/daily")
+    ld = _jsonld({
+        "@context": "https://schema.org", "@type": "ItemList",
+        "name": f"{day} AI 产品机会日报 · 金羊毛 Argo",
+        "itemListElement": [
+            {"@type": "ListItem", "position": i + 1, "name": o.get("idea", ""),
+             "url": f"{_base()}/items/{o.get('id','')}"}
+            for i, o in enumerate(all_opps)],
+    })
+    return _page(f"{day} AI 产品机会日报 · 金羊毛 Argo", body, "/daily",
+                 desc=f"{day} 金羊毛 Argo 日报：{len(all_opps)} 条通过真需求筛选的 AI 应用与产品机会，含痛点、买单人群与变现路径。",
+                 canonical="/daily", jsonld=ld)
 
 
 
@@ -1318,6 +1375,9 @@ def route(method: str, raw_path: str, body: bytes, headers: dict) -> tuple[int, 
     parts = urllib.parse.urlsplit(raw_path)
     path, query = parts.path, urllib.parse.parse_qs(parts.query)
     _req_user.set(auth.current_user(headers.get("cookie", "")))
+    host = headers.get("x-forwarded-host") or headers.get("host") or ""
+    proto = headers.get("x-forwarded-proto") or "https"
+    _req_base.set(f"{proto}://{host}" if host else "")
     H = "text/html; charset=utf-8"
     J = "application/json"
 
@@ -1330,16 +1390,37 @@ def route(method: str, raw_path: str, body: bytes, headers: dict) -> tuple[int, 
     if method == "GET" and path == "/landing":  # 预览落地页（无视登录态）
         return 200, H, _landing()
     if method == "GET" and path == "/robots.txt":
-        return 200, "text/plain", ("User-agent: *\nAllow: /$\n"
-                                   "Disallow: /app\nDisallow: /all\nDisallow: /account\n"
-                                   "Disallow: /admin\nDisallow: /api/\nDisallow: /saved\n"
-                                   "Sitemap: /sitemap.xml\n")
+        return 200, "text/plain", (
+            "User-agent: *\nAllow: /\n"
+            "Disallow: /app\nDisallow: /account\nDisallow: /admin\n"
+            "Disallow: /saved\nDisallow: /login\nDisallow: /signup\n"
+            "Disallow: /all?*q=\n"
+            f"Sitemap: {_base()}/sitemap.xml\n")
     if method == "GET" and path == "/sitemap.xml":
-        host = config.get("ARGO_PUBLIC_URL", "")
-        urls = "".join(f"<url><loc>{host}{p}</loc></url>" for p in ("/",))
+        host = _base()
+        entries = [f"<url><loc>{host}{p}</loc></url>" for p in ("/", "/daily", "/all", "/sources")]
+        entries += [
+            f"<url><loc>{host}/items/{o.get('id','')}</loc>"
+            f"<lastmod>{o.get('date','')}</lastmod></url>"
+            for o in visible_only(store.load_flat()) if o.get("id") and o.get("date")]
         return 200, "application/xml", (
             '<?xml version="1.0" encoding="UTF-8"?>'
-            f'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{urls}</urlset>')
+            f'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{"".join(entries)}</urlset>')
+    if method == "GET" and path == "/llms.txt":
+        # GEO：给 AI 答案引擎的站点说明书
+        host = _base()
+        return 200, "text/plain", (
+            "# 金羊毛 Argo\n\n"
+            "> 每天自动扫描 Reddit、Product Hunt、Hacker News、GitHub、Hugging Face 等公开源，"
+            "用「真需求」框架（价值·共识·模式·求真四道闸）筛出有人在痛、有人愿掏钱的 AI 应用与产品机会，"
+            "每条给出痛点、买单人群、变现路径、切入点与风险。\n\n"
+            "## 核心页面\n"
+            f"- [今日日报]({host}/daily)：当日通过筛选的机会清单\n"
+            f"- [全部机会库]({host}/all)：按行业/类目浏览的完整历史\n"
+            f"- [数据源]({host}/sources)：雷达覆盖的公开数据源\n\n"
+            "## 机器可读接口\n"
+            f"- {host}/api/daily ：当日机会 JSON（date/count/opportunities）\n"
+            f"- {host}/api/opportunities ：当日机会数组 JSON\n")
     if method == "GET" and path == "/login":
         return 200, H, _auth_page("login")
     if method == "GET" and path == "/signup":

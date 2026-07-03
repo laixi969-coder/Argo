@@ -29,6 +29,44 @@ def test_score_failure_cannot_become_high_potential_from_source_heat():
     assert item["verdict"] == "待验证"
 
 
+def test_score_failure_rewrites_repo_title_and_fills_analysis_fields():
+    item = score_real_demand(
+        [{
+            "idea": "yuanzhongqiao/printfilm：AI Short Film Motion Comic Generation Platform",
+            "title": "yuanzhongqiao/printfilm",
+            "raw_text": "AI Short Film Motion Comic Generation Platform",
+            "source": "github",
+            "signal": 100,
+        }],
+        llm=lambda p: "bad json",
+    )[0]
+
+    assert item["idea"] == "给内容团队的 AI 视频生成与分镜工作台"
+    assert item["pain"] and item["buyer"] and item["money"]
+    assert "/" not in item["idea"]
+
+
+def test_score_success_keeps_specific_chinese_title():
+    raw = '''{
+      "verdict":"待验证",
+      "score":62,
+      "category":"Agent",
+      "industry":"内容创意",
+      "commercial_potential":"中",
+      "idea":"给短剧团队的角色一致性分镜生成工具",
+      "reason":"有交付成果但缺少付费证据"
+    }'''
+    item = score_real_demand([{
+        "idea": "yuanzhongqiao/printfilm：AI Short Film Motion Comic Generation Platform",
+        "title": "yuanzhongqiao/printfilm",
+        "raw_text": "AI Short Film Motion Comic Generation Platform",
+        "source": "github",
+        "signal": 100,
+    }], llm=lambda p: raw)[0]
+
+    assert item["idea"] == "给短剧团队的角色一致性分镜生成工具"
+
+
 def test_score_passes_evidence_to_judge_and_keeps_validation_action():
     seen = {}
 

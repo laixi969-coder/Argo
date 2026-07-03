@@ -253,6 +253,60 @@ def test_vercel_cookie_is_always_secure(monkeypatch):
     assert web._secure() is True
 
 
+def test_jsonld_escapes_script_end_tag(tmp_path, monkeypatch):
+    monkeypatch.setattr(store, "HISTORY", tmp_path / "h4")
+    monkeypatch.setattr(store, "LATEST", tmp_path / "l4.json")
+    from datetime import date as _d
+    idea = 'bad </script><script>alert(1)</script>'
+    store.append([{"idea": idea, "verdict": "值得做", "score": 80, "reason": idea,
+                   "url": "https://x.test", "source": "s", "category": "AI应用",
+                   "is_ai_application": True}], day=_d.today().isoformat())
+    iid = store.item_id({"url": "https://x.test"})
+
+    _, _, detail = web.route("GET", f"/items/{iid}", b"", {})
+    assert "</script><script>alert(1)</script>" not in detail
+    assert "\\u003c/script\\u003e" in detail
+
+    _, _, daily = web.route("GET", "/daily", b"", {})
+    assert "</script><script>alert(1)</script>" not in daily
+
+
+def test_seo_urls_do_not_trust_host_header(monkeypatch):
+    monkeypatch.setattr(web.config, "get", lambda k, d=None: "" if k == "ARGO_PUBLIC_URL" else d)
+    hdrs = {"host": "evil.test", "x-forwarded-proto": "https"}
+
+    _, _, robots = web.route("GET", "/robots.txt", b"", hdrs)
+    _, _, sitemap = web.route("GET", "/sitemap.xml", b"", hdrs)
+    _, _, landing = web.route("GET", "/landing", b"", hdrs)
+
+    assert "evil.test" not in robots + sitemap + landing
+
+
 def test_unknown_route_404():
     status, _, _ = web.route("GET", "/nope", b"", {})
     assert status == 404
+
+
+def test_seo_surface(monkeypatch):
+    """SEO/GEO 契约：robots 放行内容、sitemap 收录机会页、llms.txt 存在、详情页有 canonical+JSON-LD。"""
+    monkeypatch.setattr(web.config, "get", lambda k, d=None: "https://argo.example.com" if k == "ARGO_PUBLIC_URL" else d)
+    _, _, robots = web.route("GET", "/robots.txt", b"", {})
+    assert "Disallow: /all\n" not in robots and "Allow: /" in robots
+    assert "Sitemap: https://argo.example.com/sitemap.xml" in robots
+
+    _, _, sm = web.route("GET", "/sitemap.xml", b"", {})
+    assert "https://argo.example.com/daily" in sm and "/items/" in sm
+
+    s, _, llms = web.route("GET", "/llms.txt", b"", {})
+    assert s == 200 and "/api/daily" in llms
+
+    item_id = store.load_flat()[0]["id"]
+    _, _, detail = web.route("GET", f"/items/{item_id}", b"", {})
+    assert f'rel=canonical href="https://argo.example.com/items/{item_id}"' in detail
+    assert "application/ld+json" in detail and '"Article"' in detail
+
+    _, _, daily = web.route("GET", "/daily", b"", {})
+    assert '"ItemList"' in daily
+
+    _, _, search = web.route("GET", "/all?q=发票", b"", {})
+    assert "noindex" in search

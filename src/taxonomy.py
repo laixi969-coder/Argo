@@ -68,6 +68,34 @@ def _potential(score, verdict: str) -> str:
     return "低"
 
 
+def _plain_chinese_title(opportunity: dict, category: str, industry: str) -> str:
+    idea = str(opportunity.get("idea") or "").strip()
+    title = str(opportunity.get("title") or "").strip()
+    text = " ".join(str(opportunity.get(k) or "") for k in (
+        "raw_text", "opportunity_type", "discovery_theme", "job", "customer",
+    )).lower()
+    source = str(opportunity.get("source") or "").lower()
+
+    looks_like_repo = "/" in idea.split("：", 1)[0] or source in {"github", "huggingface"}
+    mostly_english = sum(1 for ch in idea if "a" <= ch.lower() <= "z") > max(12, len(idea) // 3)
+    if idea and not looks_like_repo and not mostly_english:
+        return idea
+
+    if any(word in text for word in ("video", "film", "motion comic", "短剧", "视频", "image to video")):
+        return "给内容团队的 AI 视频生成与分镜工作台"
+    if any(word in text for word in ("seo", "website", "landing page", "网站")):
+        return "给中小企业的 AI 建站与 SEO 内容生成工具"
+    if any(word in text for word in ("mcp", "agent", "orchestrator", "workflow", "dashboard")):
+        return "给开发者和团队的 AI Agent 工作流管理平台"
+    if category == "AI × 工业" or industry == "制造业":
+        return "给制造业团队的工业 AI 提效工具"
+    if industry != "跨行业":
+        return f"给{industry}团队的 AI 提效工具"
+    if title:
+        return f"围绕「{title.split('/', 1)[-1][:28]}」的 AI 应用机会"
+    return "一个待验证的 AI 应用机会"
+
+
 def enrich(opportunity: dict) -> dict:
     """为成功与降级路径都补齐稳定字段，避免展示层猜结构。"""
     theme = str(opportunity.get("discovery_theme") or "")
@@ -111,4 +139,13 @@ def enrich(opportunity: dict) -> dict:
     ]
     tags = normalize_tags(opportunity.get("tags"), fallback_tags)
     opportunity["tags"] = tags or [category]
+
+    if failed_judgement:
+        opportunity["idea"] = _plain_chinese_title(opportunity, category, industry)
+        opportunity.setdefault("hook", opportunity["idea"])
+        opportunity.setdefault("pain", "原始材料只证明它是一个可运行的 AI 成果，尚未证明具体用户痛点。")
+        opportunity.setdefault("buyer", "待验证：需要找到真正有预算并愿意签字的目标用户。")
+        opportunity.setdefault("money", "待验证：先用预售、付费试点或小额订阅验证真实支付意愿。")
+        opportunity.setdefault("angle", "先从最窄的高频任务切入，验证一次交付能否省时间或提升质量。")
+        opportunity.setdefault("risk", "最大风险是只有技术热度，没有持续付费或复购证据。")
     return opportunity

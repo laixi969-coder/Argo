@@ -126,6 +126,9 @@ def _score_one(o, llm):
         o["industry"] = str(data.get("industry") or o.get("industry") or "").strip()
         o["commercial_potential"] = str(data.get("commercial_potential") or "").strip()
         o["tags"] = taxonomy.normalize_tags(data.get("tags"), o.get("source_tags") or [])
+        title = str(data.get("idea") or "").strip()
+        if title and title != "未知":
+            o["idea"] = title
         o["reason"] = str(data["reason"]).strip()
         strength = data.get("evidence_strength", "未知")
         o["evidence_strength"] = (
