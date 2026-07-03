@@ -81,12 +81,13 @@ def _plain_chinese_title(opportunity: dict, category: str, industry: str) -> str
     if idea and not looks_like_repo and not mostly_english:
         return idea
 
+    detail = _title_detail(title or idea, text)
     if any(word in text for word in ("video", "film", "motion comic", "短剧", "视频", "image to video")):
-        return "给内容团队的 AI 视频生成与分镜工作台"
+        return _with_detail("给内容团队的 AI 视频生成与分镜工作台", detail)
     if any(word in text for word in ("seo", "website", "landing page", "网站")):
-        return "给中小企业的 AI 建站与 SEO 内容生成工具"
+        return _with_detail("给中小企业的 AI 建站与 SEO 内容生成工具", detail)
     if any(word in text for word in ("mcp", "agent", "orchestrator", "workflow", "dashboard")):
-        return "给开发者和团队的 AI Agent 工作流管理平台"
+        return _with_detail("给开发者和团队的 AI Agent 工作流管理平台", detail)
     if category == "AI × 工业" or industry == "制造业":
         return "给制造业团队的工业 AI 提效工具"
     if industry != "跨行业":
@@ -94,6 +95,26 @@ def _plain_chinese_title(opportunity: dict, category: str, industry: str) -> str
     if title:
         return f"围绕「{title.split('/', 1)[-1][:28]}」的 AI 应用机会"
     return "一个待验证的 AI 应用机会"
+
+
+def _with_detail(base: str, detail: str) -> str:
+    return f"{base}：{detail}" if detail else base
+
+
+def _title_detail(title: str, text: str) -> str:
+    raw = str(title or "").split("：", 1)[-1].split("/", 1)[-1]
+    words = [w.strip("-_.:,()[]{}") for w in raw.replace("AI", " ").split()]
+    words = [
+        w for w in words
+        if len(w) >= 3 and w.lower() not in {"the", "and", "for", "with", "generation", "platform"}
+    ]
+    if words:
+        return " ".join(words[:3])[:24]
+    if "motion comic" in text:
+        return "短片漫画生成"
+    if "image to video" in text:
+        return "图生视频"
+    return ""
 
 
 def enrich(opportunity: dict) -> dict:

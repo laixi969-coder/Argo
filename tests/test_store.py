@@ -75,6 +75,31 @@ def test_cloud_rerun_merges_existing_snapshot(monkeypatch):
     assert [o["idea"] for o in written["history:2026-06-30"]] == ["午班", "早班"]
 
 
+def test_merge_same_day_keeps_distinct_items_even_when_title_base_matches():
+    merged = store._merge(
+        [{
+            "idea": "给内容团队的 AI 视频生成与分镜工作台：Video Maker",
+            "url": "https://a.test/video",
+            "score": 40,
+            "category": "AI应用",
+            "industry": "内容创意",
+            "is_ai_application": True,
+        }],
+        [{
+            "idea": "给内容团队的 AI 视频生成与分镜工作台：Scene Studio",
+            "url": "https://b.test/scene",
+            "score": 45,
+            "category": "AI应用",
+            "industry": "内容创意",
+            "is_ai_application": True,
+        }],
+        "2026-07-03",
+    )
+
+    assert [o["url"] for o in merged] == ["https://b.test/scene", "https://a.test/video"]
+    assert all(o["date"] == "2026-07-03" for o in merged)
+
+
 def test_production_reads_and_merges_never_expose_demo_items(monkeypatch):
     monkeypatch.setattr(store.kv, "enabled", lambda: True)
     fake = {"idea": "演示", "url": "https://example.com/0", "date": "2026-06-30"}

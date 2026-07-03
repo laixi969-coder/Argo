@@ -108,6 +108,18 @@ def _parse_result(raw):
     return data, score
 
 
+def _judge_error_code(exc: Exception) -> str:
+    name = type(exc).__name__.lower()
+    text = str(exc).lower()
+    if "timeout" in name or "timeout" in text or "timed out" in text:
+        return "judge_timeout"
+    if isinstance(exc, json.JSONDecodeError) or "json" in text:
+        return "invalid_json"
+    if "verdict" in text or "score" in text or "reason" in text:
+        return "invalid_judge_result"
+    return "judge_failed"
+
+
 def score_real_demand(opps, llm=call_llm):
     # 逐条独立，可并发；总耗时从「条数×单次」压到约 1/并发数
     with ThreadPoolExecutor(max_workers=_CONCURRENCY) as pool:
@@ -146,8 +158,9 @@ def _score_one(o, llm):
             data.get("commercial_evidence")
             or (o["market_proof"] if o["market_proof"] != "未知" else "无")
         ).strip()
-    except Exception:
+    except Exception as exc:
         o["verdict"] = "待验证"
+        o["judge_error"] = _judge_error_code(exc)
         # 源头热度只能决定“值得继续看”，不能冒充真需求或商业潜力。
         # 精判失败时封顶 45，避免高 Star/点赞项目冲到榜首并被误标高潜。
         o["score"] = min(float(o.get("signal", 0)), 45.0)

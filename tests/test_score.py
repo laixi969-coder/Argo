@@ -13,10 +13,14 @@ def test_score_fills_fields():
     assert out[0]["tags"]
 
 def test_score_degrades_on_bad_json():
+    def bad_llm(prompt):
+        raise RuntimeError("judge timeout")
+
     opps = [{"idea": "x", "signal": 40}]
-    out = score_real_demand(opps, llm=lambda p: "模型今天抽风不是 JSON")
+    out = score_real_demand(opps, llm=bad_llm)
     assert out[0]["verdict"] == "待验证"
     assert out[0]["score"] == 40
+    assert out[0]["judge_error"] == "judge_timeout"
 
 
 def test_score_failure_cannot_become_high_potential_from_source_heat():
@@ -41,9 +45,34 @@ def test_score_failure_rewrites_repo_title_and_fills_analysis_fields():
         llm=lambda p: "bad json",
     )[0]
 
-    assert item["idea"] == "给内容团队的 AI 视频生成与分镜工作台"
+    assert item["idea"].startswith("给内容团队的 AI 视频生成与分镜工作台：")
     assert item["pain"] and item["buyer"] and item["money"]
     assert "/" not in item["idea"]
+
+
+def test_score_failure_keeps_distinct_fallback_titles_for_different_repos():
+    items = score_real_demand(
+        [
+            {
+                "idea": "team/video-maker：AI Short Film Motion Comic Generation Platform",
+                "title": "team/video-maker",
+                "raw_text": "AI Short Film Motion Comic Generation Platform",
+                "source": "github",
+                "signal": 100,
+            },
+            {
+                "idea": "team/scene-studio：Image to Video Storyboard Tool",
+                "title": "team/scene-studio",
+                "raw_text": "Image to Video Storyboard Tool",
+                "source": "github",
+                "signal": 100,
+            },
+        ],
+        llm=lambda p: "bad json",
+    )
+
+    assert items[0]["idea"] != items[1]["idea"]
+    assert all(item["idea"].startswith("给内容团队的 AI 视频生成与分镜工作台：") for item in items)
 
 
 def test_score_success_keeps_specific_chinese_title():
