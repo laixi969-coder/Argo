@@ -75,6 +75,41 @@ def test_score_failure_keeps_distinct_fallback_titles_for_different_repos():
     assert all(item["idea"].startswith("给内容团队的 AI 视频生成与分镜工作台：") for item in items)
 
 
+def test_score_failure_uses_task_titles_not_obscure_product_names():
+    items = score_real_demand(
+        [
+            {
+                "idea": "Windsurf",
+                "title": "Windsurf",
+                "raw_text": "AI coding IDE integration for developer productivity",
+                "source": "futurepedia",
+                "signal": 70,
+            },
+            {
+                "idea": "Wan2.2 14B Preview",
+                "title": "Wan2.2 14B Preview",
+                "raw_text": "open model preview for video generation",
+                "source": "huggingface",
+                "signal": 100,
+            },
+            {
+                "idea": "team/nopua：Agent workflow dashboard",
+                "title": "team/nopua",
+                "raw_text": "Agent workflow dashboard for teams",
+                "source": "github",
+                "signal": 100,
+            },
+        ],
+        llm=lambda p: "bad json",
+    )
+
+    assert [item["idea"] for item in items] == [
+        "在 IDE 里理解项目并自动改代码的 AI 开发助手",
+        "给内容团队的开源视频生成模型预览",
+        "给开发者和团队的 AI Agent 工作流管理平台：多智能体流程编排",
+    ]
+
+
 def test_score_success_keeps_specific_chinese_title():
     raw = '''{
       "verdict":"待验证",

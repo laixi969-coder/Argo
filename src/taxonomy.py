@@ -77,17 +77,22 @@ def _plain_chinese_title(opportunity: dict, category: str, industry: str) -> str
     source = str(opportunity.get("source") or "").lower()
 
     looks_like_repo = "/" in idea.split("：", 1)[0] or source in {"github", "huggingface"}
-    mostly_english = sum(1 for ch in idea if "a" <= ch.lower() <= "z") > max(12, len(idea) // 3)
+    mostly_english = sum(1 for ch in idea if "a" <= ch.lower() <= "z") > max(6, len(idea) // 4)
     if idea and not looks_like_repo and not mostly_english:
         return idea
 
-    detail = _title_detail(title or idea, text)
+    if "windsurf" in text or " ide " in f" {text} ":
+        return "在 IDE 里理解项目并自动改代码的 AI 开发助手"
+    if any(word in text for word in ("wan2.2", "14b", "preview", "open model", "开源模型")):
+        return "给内容团队的开源视频生成模型预览"
     if any(word in text for word in ("video", "film", "motion comic", "短剧", "视频", "image to video")):
-        return _with_detail("给内容团队的 AI 视频生成与分镜工作台", detail)
+        return _with_detail("给内容团队的 AI 视频生成与分镜工作台", _task_detail(text))
     if any(word in text for word in ("seo", "website", "landing page", "网站")):
-        return _with_detail("给中小企业的 AI 建站与 SEO 内容生成工具", detail)
+        return _with_detail("给中小企业的 AI 建站与 SEO 内容生成工具", _task_detail(text))
     if any(word in text for word in ("mcp", "agent", "orchestrator", "workflow", "dashboard")):
-        return _with_detail("给开发者和团队的 AI Agent 工作流管理平台", detail)
+        return _with_detail("给开发者和团队的 AI Agent 工作流管理平台", _task_detail(text))
+    if any(word in text for word in ("code", "coding", "developer", "代码", "编程")):
+        return "给开发者的代码生成与重构助手"
     if category == "AI × 工业" or industry == "制造业":
         return "给制造业团队的工业 AI 提效工具"
     if industry != "跨行业":
@@ -101,19 +106,21 @@ def _with_detail(base: str, detail: str) -> str:
     return f"{base}：{detail}" if detail else base
 
 
-def _title_detail(title: str, text: str) -> str:
-    raw = str(title or "").split("：", 1)[-1].split("/", 1)[-1]
-    words = [w.strip("-_.:,()[]{}") for w in raw.replace("AI", " ").split()]
-    words = [
-        w for w in words
-        if len(w) >= 3 and w.lower() not in {"the", "and", "for", "with", "generation", "platform"}
-    ]
-    if words:
-        return " ".join(words[:3])[:24]
+def _task_detail(text: str) -> str:
     if "motion comic" in text:
         return "短片漫画生成"
     if "image to video" in text:
         return "图生视频"
+    if "storyboard" in text or "分镜" in text:
+        return "分镜生成"
+    if "seo" in text:
+        return "SEO 内容获客"
+    if "landing page" in text or "website" in text or "网站" in text:
+        return "网站转化页生成"
+    if "mcp" in text:
+        return "工具连接协议"
+    if "workflow" in text or "orchestrator" in text or "dashboard" in text:
+        return "多智能体流程编排"
     return ""
 
 
