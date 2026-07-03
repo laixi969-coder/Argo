@@ -45,7 +45,7 @@ def test_score_failure_rewrites_repo_title_and_fills_analysis_fields():
         llm=lambda p: "bad json",
     )[0]
 
-    assert item["idea"].startswith("给内容团队的 AI 视频生成与分镜工作台：")
+    assert item["idea"] == "AI 短片漫画生成开始产品化：内容团队可以把分镜资产直接压成可验证样片"
     assert item["pain"] and item["buyer"] and item["money"]
     assert "/" not in item["idea"]
 
@@ -72,7 +72,8 @@ def test_score_failure_keeps_distinct_fallback_titles_for_different_repos():
     )
 
     assert items[0]["idea"] != items[1]["idea"]
-    assert all(item["idea"].startswith("给内容团队的 AI 视频生成与分镜工作台：") for item in items)
+    assert items[0]["idea"] == "AI 短片漫画生成开始产品化：内容团队可以把分镜资产直接压成可验证样片"
+    assert items[1]["idea"] == "图生视频进入快预览阶段：内容团队可以低成本批量试镜头再筛选精修"
 
 
 def test_score_failure_uses_task_titles_not_obscure_product_names():
@@ -104,9 +105,9 @@ def test_score_failure_uses_task_titles_not_obscure_product_names():
     )
 
     assert [item["idea"] for item in items] == [
-        "在 IDE 里理解项目并自动改代码的 AI 开发助手",
-        "给内容团队的开源视频生成模型预览",
-        "给开发者和团队的 AI Agent 工作流管理平台：多智能体流程编排",
+        "IDE 编程助手从补全走向交付：开发者需要能理解项目并可靠改代码的工具",
+        "图生视频进入快预览阶段：内容团队可以低成本批量试镜头再筛选精修",
+        "AI Agent 从单人玩具走向团队协作：任务编排、权限、日志和交付追踪会成为刚需",
     ]
 
 
@@ -129,6 +130,144 @@ def test_score_success_keeps_specific_chinese_title():
     }], llm=lambda p: raw)[0]
 
     assert item["idea"] == "给短剧团队的角色一致性分镜生成工具"
+
+
+def test_score_success_keeps_opportunity_judgement_title():
+    raw = '''{
+      "verdict":"待验证",
+      "score":66,
+      "category":"AI应用",
+      "industry":"内容创意",
+      "commercial_potential":"中",
+      "idea":"中文 TTS 成本继续下降：品牌声音、短视频配音和 AI 客服开始适合小团队试水",
+      "reason":"有可运行 Demo 但缺少付费证据"
+    }'''
+    item = score_real_demand([{
+        "idea": "Qwen3-TTS Demo",
+        "title": "Qwen3-TTS Demo",
+        "raw_text": "Qwen3-TTS Demo text to speech voice generation",
+        "source": "huggingface",
+        "signal": 80,
+    }], llm=lambda p: raw)[0]
+
+    assert item["idea"] == "中文 TTS 成本继续下降：品牌声音、短视频配音和 AI 客服开始适合小团队试水"
+
+
+def test_score_success_rewrites_missing_or_generic_idea():
+    raw = '''{
+      "verdict":"待验证",
+      "score":60,
+      "category":"AI应用",
+      "industry":"内容创意",
+      "commercial_potential":"中",
+      "hook":"图生视频模型可以更快生成预览片段",
+      "buyer":"内容团队",
+      "angle":"图生视频快预览",
+      "risk":"缺少稳定质量和付费证据",
+      "reason":"有模型预览但缺少付费证据"
+    }'''
+    item = score_real_demand([{
+        "idea": "围绕「Wan2.2 14B Fast Preview」的 AI 应用机会",
+        "title": "Wan2.2 14B Fast Preview",
+        "raw_text": "generate a video from an image with a text prompt",
+        "source": "huggingface",
+        "signal": 90,
+    }], llm=lambda p: raw)[0]
+
+    assert item["idea"] == "图生视频进入快预览阶段：内容团队可以低成本批量试镜头再筛选精修"
+
+
+def test_unknown_technical_title_fallback_is_not_source_summary():
+    item = score_real_demand(
+        [{
+            "idea": "team/unknown-demo：Next Gen AI Demo",
+            "title": "team/unknown-demo",
+            "raw_text": "Next Gen AI Demo for a narrow task",
+            "source": "github",
+            "signal": 80,
+        }],
+        llm=lambda p: "bad json",
+    )[0]
+
+    assert item["idea"] == "新 AI 工具信号：先判断它替代哪段人工、谁会付费和能否持续交付"
+    assert "围绕" not in item["idea"]
+    assert "unknown-demo" not in item["idea"]
+
+
+def test_qwen_coding_model_does_not_fall_into_tts_title():
+    item = score_real_demand(
+        [{
+            "idea": "Qwen3-Coder-14B",
+            "title": "Qwen3-Coder-14B",
+            "raw_text": "Qwen coding model for code completion and agentic editing",
+            "source": "huggingface",
+            "signal": 80,
+        }],
+        llm=lambda p: "bad json",
+    )[0]
+
+    assert "TTS" not in item["idea"]
+    assert "配音" not in item["idea"]
+    assert item["idea"] == "AI 编程工具需要重点看：它是否解决准确改代码和团队可控交付问题"
+
+
+def test_non_video_14b_preview_does_not_fall_into_video_title():
+    item = score_real_demand(
+        [{
+            "idea": "Foo-14B Preview",
+            "title": "Foo-14B Preview",
+            "raw_text": "large language model preview for document analysis",
+            "source": "huggingface",
+            "signal": 80,
+        }],
+        llm=lambda p: "bad json",
+    )[0]
+
+    assert "图生视频" not in item["idea"]
+    assert "试镜头" not in item["idea"]
+    assert item["idea"] == "新 AI 工具信号：先判断它替代哪段人工、谁会付费和能否持续交付"
+
+
+def test_chinese_opportunity_title_with_slash_is_preserved():
+    raw = '''{
+      "verdict":"待验证",
+      "score":64,
+      "category":"服务",
+      "industry":"金融",
+      "commercial_potential":"中",
+      "idea":"收款/风控压力上升：出海平台需要备用支付通道和资金预案",
+      "reason":"案例暴露资金冻结风险但缺少付费验证"
+    }'''
+    item = score_real_demand([{
+        "idea": "Stripe withheld funds",
+        "title": "Stripe withheld funds",
+        "raw_text": "Stripe withheld $85k from our EU platform",
+        "source": "hackernews",
+        "signal": 80,
+    }], llm=lambda p: raw)[0]
+
+    assert item["idea"] == "收款/风控压力上升：出海平台需要备用支付通道和资金预案"
+
+
+def test_mixed_language_opportunity_judgement_title_is_preserved():
+    raw = '''{
+      "verdict":"待验证",
+      "score":64,
+      "category":"Agent",
+      "industry":"开发者工具",
+      "commercial_potential":"中",
+      "idea":"MCP/Agent 成本下降：团队开始需要权限、日志和协作层",
+      "reason":"协作需求成立但缺少付费验证"
+    }'''
+    item = score_real_demand([{
+        "idea": "Agent workflow dashboard",
+        "title": "Agent workflow dashboard",
+        "raw_text": "MCP and agent workflow dashboard for teams",
+        "source": "github",
+        "signal": 80,
+    }], llm=lambda p: raw)[0]
+
+    assert item["idea"] == "MCP/Agent 成本下降：团队开始需要权限、日志和协作层"
 
 
 def test_score_passes_evidence_to_judge_and_keeps_validation_action():

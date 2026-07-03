@@ -71,57 +71,85 @@ def _potential(score, verdict: str) -> str:
 def _plain_chinese_title(opportunity: dict, category: str, industry: str) -> str:
     idea = str(opportunity.get("idea") or "").strip()
     title = str(opportunity.get("title") or "").strip()
-    text = " ".join(str(opportunity.get(k) or "") for k in (
-        "raw_text", "opportunity_type", "discovery_theme", "job", "customer",
-    )).lower()
-    source = str(opportunity.get("source") or "").lower()
+    text = _title_context(opportunity)
 
-    looks_like_repo = "/" in idea.split("：", 1)[0] or source in {"github", "huggingface"}
-    mostly_english = sum(1 for ch in idea if "a" <= ch.lower() <= "z") > max(6, len(idea) // 4)
-    if idea and not looks_like_repo and not mostly_english:
+    if idea and not _needs_title_rewrite(idea, opportunity):
         return idea
 
+    if any(word in text for word in ("stripe", "withheld", "freeze", "frozen", "冻结", "扣款")):
+        return "Stripe 冻结资金案例：出海平台必须提前设计收款备份和资金风控"
+    if any(word in text for word in ("tts", "text to speech", "语音合成", "配音")):
+        return "中文 TTS 成本继续下降：品牌声音、短视频配音和 AI 客服开始适合小团队试水"
+    if any(word in text for word in ("gpu", "cuda", "ai-fundamentals", "ai fundamentals", "基础知识")):
+        return "AI 基础知识正在变成创业判断力：不懂 GPU、CUDA、Agent，就很难判断项目成本"
     if "windsurf" in text or " ide " in f" {text} ":
-        return "在 IDE 里理解项目并自动改代码的 AI 开发助手"
-    if any(word in text for word in ("wan2.2", "14b", "preview", "open model", "开源模型")):
-        return "给内容团队的开源视频生成模型预览"
-    if any(word in text for word in ("video", "film", "motion comic", "短剧", "视频", "image to video")):
-        return _with_detail("给内容团队的 AI 视频生成与分镜工作台", _task_detail(text))
-    if any(word in text for word in ("seo", "website", "landing page", "网站")):
-        return _with_detail("给中小企业的 AI 建站与 SEO 内容生成工具", _task_detail(text))
+        return "IDE 编程助手从补全走向交付：开发者需要能理解项目并可靠改代码的工具"
+    if any(word in text for word in ("oh-my-pi", "terminal", "lsp", "hash-anchored")):
+        return "终端 AI 编程助手继续进化：可靠代码定位、浏览器操作和多 Agent 协作成为标配"
+    if any(word in text for word in ("wan2.2", "image to video", "图生视频")):
+        return "图生视频进入快预览阶段：内容团队可以低成本批量试镜头再筛选精修"
+    if "motion comic" in text or "short film" in text or "短片漫画" in text:
+        return "AI 短片漫画生成开始产品化：内容团队可以把分镜资产直接压成可验证样片"
+    if any(word in text for word in ("storyboard", "分镜", "video workflow", "视频工作台")):
+        return "内容团队最缺的不是模型，而是分镜、图生视频和多版本管理的生产工作台"
+    if any(word in text for word in ("code", "coding", "developer", "代码", "编程", "jcode")):
+        return "AI 编程工具需要重点看：它是否解决准确改代码和团队可控交付问题"
     if any(word in text for word in ("mcp", "agent", "orchestrator", "workflow", "dashboard")):
-        return _with_detail("给开发者和团队的 AI Agent 工作流管理平台", _task_detail(text))
-    if any(word in text for word in ("code", "coding", "developer", "代码", "编程")):
-        return "给开发者的代码生成与重构助手"
+        return "AI Agent 从单人玩具走向团队协作：任务编排、权限、日志和交付追踪会成为刚需"
     if category == "AI × 工业" or industry == "制造业":
-        return "给制造业团队的工业 AI 提效工具"
+        return "工业 AI 的机会在降本而非炫技：制造团队会为停机、良率和能耗改善付费"
     if industry != "跨行业":
-        return f"给{industry}团队的 AI 提效工具"
+        return f"{industry}团队的 AI 机会：先找高频损失场景，再验证付费意愿"
     if title:
-        return f"围绕「{title.split('/', 1)[-1][:28]}」的 AI 应用机会"
-    return "一个待验证的 AI 应用机会"
+        return "新 AI 工具信号：先判断它替代哪段人工、谁会付费和能否持续交付"
+    return "一个待验证的 AI 应用机会：先确认用户痛点、预算和最小付费动作"
 
 
-def _with_detail(base: str, detail: str) -> str:
-    return f"{base}：{detail}" if detail else base
+def _title_context(opportunity: dict) -> str:
+    parts = []
+    for key in (
+        "idea", "title", "raw_text", "opportunity_type", "discovery_theme",
+        "job", "customer", "hook", "pain", "buyer", "angle", "risk",
+    ):
+        parts.append(str(opportunity.get(key) or ""))
+    parts.extend(str(tag or "") for tag in opportunity.get("source_tags") or [])
+    return " ".join(parts).lower()
 
 
-def _task_detail(text: str) -> str:
-    if "motion comic" in text:
-        return "短片漫画生成"
-    if "image to video" in text:
-        return "图生视频"
-    if "storyboard" in text or "分镜" in text:
-        return "分镜生成"
-    if "seo" in text:
-        return "SEO 内容获客"
-    if "landing page" in text or "website" in text or "网站" in text:
-        return "网站转化页生成"
-    if "mcp" in text:
-        return "工具连接协议"
-    if "workflow" in text or "orchestrator" in text or "dashboard" in text:
-        return "多智能体流程编排"
-    return ""
+def _needs_title_rewrite(idea: str, opportunity: dict) -> bool:
+    generic = idea.startswith("围绕「") or idea in {"未知", "某产品机会"}
+    if generic:
+        return True
+    if _has_chinese_judgement(idea):
+        return False
+    head = idea.split("：", 1)[0]
+    source = str(opportunity.get("source") or "").lower()
+    repo_like = _looks_like_repo_slug(head) or (
+        source in {"github", "huggingface"} and _mostly_english(idea)
+    )
+    technical_label = _mostly_english(idea) or any(
+        word in idea.lower() for word in ("demo", "preview", "github", "huggingface")
+    )
+    return repo_like or technical_label
+
+
+def _has_chinese_judgement(value: str) -> bool:
+    if not any("一" <= ch <= "鿿" for ch in value):
+        return False
+    markers = ("：", "成本", "下降", "上升", "需要", "必须", "开始", "成为", "进入", "风险", "可以")
+    return any(marker in value for marker in markers)
+
+
+def _looks_like_repo_slug(value: str) -> bool:
+    if "/" not in value or any("一" <= ch <= "鿿" for ch in value):
+        return False
+    owner, repo = value.split("/", 1)
+    return bool(owner.strip() and repo.strip())
+
+
+def _mostly_english(value: str) -> bool:
+    letters = sum(1 for ch in value if "a" <= ch.lower() <= "z")
+    return letters > max(6, len(value) // 4)
 
 
 def enrich(opportunity: dict) -> dict:
@@ -168,8 +196,9 @@ def enrich(opportunity: dict) -> dict:
     tags = normalize_tags(opportunity.get("tags"), fallback_tags)
     opportunity["tags"] = tags or [category]
 
-    if failed_judgement:
+    if failed_judgement or _needs_title_rewrite(str(opportunity.get("idea") or ""), opportunity):
         opportunity["idea"] = _plain_chinese_title(opportunity, category, industry)
+    if failed_judgement:
         opportunity.setdefault("hook", opportunity["idea"])
         opportunity.setdefault("pain", "原始材料只证明它是一个可运行的 AI 成果，尚未证明具体用户痛点。")
         opportunity.setdefault("buyer", "待验证：需要找到真正有预算并愿意签字的目标用户。")
