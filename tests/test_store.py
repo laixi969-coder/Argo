@@ -128,14 +128,14 @@ def test_legacy_failed_judgement_is_safely_downgraded_on_read(monkeypatch):
     assert item["commercial_potential"] == "低"
 
 
-def test_non_ai_history_is_removed_from_reads_and_merges():
+def test_non_ai_history_is_retained_as_a_business_opportunity():
     physical = {"idea": "普通毛绒玩具", "url": "https://x.com/toy",
                 "is_ai_application": False}
     ai = {"idea": "AI 质检助手", "url": "https://x.com/ai",
           "is_ai_application": True}
 
-    assert [o["idea"] for o in store._loaded([physical, ai])] == ["AI 质检助手"]
-    assert [o["idea"] for o in store._merge([physical], [ai], "2026-07-01")] == ["AI 质检助手"]
+    assert [o["idea"] for o in store._loaded([physical, ai])] == ["普通毛绒玩具", "AI 质检助手"]
+    assert [o["idea"] for o in store._merge([physical], [ai], "2026-07-01")] == ["普通毛绒玩具", "AI 质检助手"]
 
 
 def test_cloud_read_failure_falls_back_to_local_latest(monkeypatch, tmp_path):

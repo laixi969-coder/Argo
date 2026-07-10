@@ -15,6 +15,23 @@ INDUSTRIES = (
 
 COMMERCIAL_POTENTIALS = ("高", "中", "低")
 
+
+def business_stage(opportunity: dict) -> str:
+    """把「有信号」与「可能是好生意」明确分开。"""
+    verdict = str(opportunity.get("verdict") or "").strip()
+    if verdict == "伪需求":
+        return "止损"
+    if (verdict == "市场已验证"
+            and opportunity.get("commercial_potential") == "高"
+            and opportunity.get("evidence_strength") == "强"
+            and str(opportunity.get("market_proof") or "").strip() not in {"", "无", "未知"}):
+        return "好生意候选"
+    if verdict == "市场已验证":
+        return "已验证市场"
+    if verdict == "真需求":
+        return "可小试"
+    return "发现线索"
+
 _INDUSTRY_TERMS = (
     ("制造业", ("工厂", "制造", "产线", "设备", "质检", "工业", "machine vision",
               "manufactur", "factory", "predictive maintenance")),
@@ -96,13 +113,18 @@ def _plain_chinese_title(opportunity: dict, category: str, industry: str) -> str
         return "AI 编程工具需要重点看：它是否解决准确改代码和团队可控交付问题"
     if any(word in text for word in ("mcp", "agent", "orchestrator", "workflow", "dashboard")):
         return "AI Agent 从单人玩具走向团队协作：任务编排、权限、日志和交付追踪会成为刚需"
-    if category == "AI × 工业" or industry == "制造业":
+    if category == "AI × 工业" or (industry == "制造业" and opportunity.get("is_ai_application") is True):
         return "工业 AI 的机会在降本而非炫技：制造团队会为停机、良率和能耗改善付费"
     if industry != "跨行业":
-        return f"{industry}团队的 AI 机会：先找高频损失场景，再验证付费意愿"
+        prefix = "AI " if opportunity.get("is_ai_application") is True else ""
+        return f"{industry}团队的 {prefix}机会：先找高频损失场景，再验证付费意愿"
     if title:
-        return "新 AI 工具信号：先判断它替代哪段人工、谁会付费和能否持续交付"
-    return "一个待验证的 AI 应用机会：先确认用户痛点、预算和最小付费动作"
+        return ("新 AI 工具信号：先判断它替代哪段人工、谁会付费和能否持续交付"
+                if opportunity.get("is_ai_application") is True else
+                "新商业信号：先判断谁在承担损失、谁会付费和能否持续交付")
+    return ("一个待验证的 AI 应用机会：先确认用户痛点、预算和最小付费动作"
+            if opportunity.get("is_ai_application") is True else
+            "一个待验证的商业机会：先确认用户痛点、预算和最小付费动作")
 
 
 def _title_context(opportunity: dict) -> str:
@@ -159,9 +181,18 @@ def enrich(opportunity: dict) -> dict:
         opportunity["is_ai_application"] = infer_ai_relevance(opportunity)
     category = str(opportunity.get("category") or "").strip()
     if category not in CATEGORIES:
-        category = "Agent" if "Agent" in theme else (
-            "AI × 工业" if "工业" in theme else "AI应用"
-        )
+        is_ai = opportunity.get("is_ai_application") is True
+        kind = str(opportunity.get("opportunity_type") or "")
+        if is_ai:
+            category = "Agent" if "Agent" in theme else (
+                "AI × 工业" if "工业" in theme else "AI应用"
+            )
+        elif "实体" in kind or any(word in theme for word in ("消费品", "零售", "制造")):
+            category = "实体产品"
+        elif "内容" in kind or "内容" in theme:
+            category = "虚拟内容"
+        else:
+            category = "服务"
     opportunity["category"] = category
 
     industry = str(opportunity.get("industry") or opportunity.get("industry_hint") or "").strip()
@@ -186,6 +217,7 @@ def enrich(opportunity: dict) -> dict:
     if potential not in COMMERCIAL_POTENTIALS:
         potential = _potential(opportunity.get("score"), str(opportunity.get("verdict") or ""))
     opportunity["commercial_potential"] = potential
+    opportunity["business_stage"] = business_stage(opportunity)
 
     fallback_tags = [
         *(opportunity.get("source_tags") or []),
@@ -200,7 +232,7 @@ def enrich(opportunity: dict) -> dict:
         opportunity["idea"] = _plain_chinese_title(opportunity, category, industry)
     if failed_judgement:
         opportunity.setdefault("hook", opportunity["idea"])
-        opportunity.setdefault("pain", "原始材料只证明它是一个可运行的 AI 成果，尚未证明具体用户痛点。")
+        opportunity.setdefault("pain", "原始材料只证明它是一个可研究的成果或信号，尚未证明具体用户痛点。")
         opportunity.setdefault("buyer", "待验证：需要找到真正有预算并愿意签字的目标用户。")
         opportunity.setdefault("money", "待验证：先用预售、付费试点或小额订阅验证真实支付意愿。")
         opportunity.setdefault("angle", "先从最窄的高频任务切入，验证一次交付能否省时间或提升质量。")

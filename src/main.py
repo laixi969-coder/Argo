@@ -73,12 +73,13 @@ def _run_unlocked():
     top = dedup.filter_fresh(top, min_keep=15)
     print(f"[漏斗] 去重保鲜 → {len(top)}")
     top = extract.extract_ideas(top)
-    # 剔除新闻/段子/公告等非需求内容，再进昂贵的真需求精判（去噪 + 省 LLM 调用）
+    # 剔除新闻/段子/公告等非需求内容，再进昂贵的真需求精判。
+    # AI 是分类而非门槛；实体、服务、内容等真实需求也接受同一套审查。
     top = [
         o for o in top
-        if o.get("is_demand", True) and o.get("is_ai_application", False)
+        if o.get("is_demand", True)
     ]
-    print(f"[漏斗] 剔除非需求/非 AI 应用 → {len(top)}")
+    print(f"[漏斗] 剔除非需求信号 → {len(top)}")
     top = score.score_real_demand(top)
     final = rank.rank(top, n=20)
     print(f"[漏斗] 精判+排序(去伪需求/未知) → {len(final)}")

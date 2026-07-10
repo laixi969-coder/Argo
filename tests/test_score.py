@@ -8,7 +8,7 @@ def test_score_fills_fields():
     assert out[0]["score"] == 75
     assert out[0]["reason"]
     assert out[0]["commercial_potential"] == "中"
-    assert out[0]["category"] == "AI应用"
+    assert out[0]["category"] == "服务"
     assert out[0]["industry"] == "金融"
     assert out[0]["tags"]
 
@@ -386,7 +386,24 @@ def test_score_sanitizes_unknown_taxonomy_values():
            '"commercial_potential":"暴高","tags":"不是数组"}')
     item = score_real_demand([{"idea": "x", "signal": 30}], llm=lambda p: raw)[0]
 
-    assert item["category"] == "AI应用"
+    assert item["category"] == "服务"
     assert item["industry"] == "跨行业"
     assert item["commercial_potential"] == "中"
     assert isinstance(item["tags"], list)
+
+
+def test_score_only_labels_a_good_business_candidate_with_strong_market_proof():
+    raw = ('{"verdict":"市场已验证","score":91,"reason":"已有持续付费客户",'
+           '"commercial_potential":"高","evidence_strength":"强",'
+           '"market_proof":"12 家客户连续付费 6 个月"}')
+    item = score_real_demand([{"idea": "企业设备维保服务", "signal": 80}], llm=lambda p: raw)[0]
+
+    assert item["business_stage"] == "好生意候选"
+
+
+def test_score_does_not_label_an_unproven_signal_as_a_good_business():
+    raw = ('{"verdict":"待验证","score":88,"reason":"只有热度，没有付款证据",'
+           '"commercial_potential":"高","evidence_strength":"弱","market_proof":"无"}')
+    item = score_real_demand([{"idea": "热门消费品趋势", "signal": 95}], llm=lambda p: raw)[0]
+
+    assert item["business_stage"] == "发现线索"

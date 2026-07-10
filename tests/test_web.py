@@ -1,6 +1,6 @@
 import json
 import pytest
-from src import web, store, plans
+from src import web, store, plans, clock
 
 
 @pytest.fixture(autouse=True)
@@ -25,8 +25,8 @@ def seed(tmp_path, monkeypatch):
          "title": "dog walk", "raw_text": "neighborhood dog walking schedule"},
     ]
     from datetime import date, timedelta
-    today = date.today().isoformat()
-    yest = (date.today() - timedelta(days=1)).isoformat()
+    today = clock.today_iso()
+    yest = (date.fromisoformat(today) - timedelta(days=1)).isoformat()
     store.append(opps, day=yest)
     store.append(opps, day=today)
     return opps
@@ -41,10 +41,9 @@ def test_featured_page():
 
 
 def test_all_page_has_pager_and_dategroup():
-    from datetime import date
     status, _, body = web.route("GET", "/all", b"", {})
     assert status == 200
-    assert date.today().isoformat() in body and "/ " in body  # 日期组 + 分页 "x / y"
+    assert clock.today_iso() in body and "/ " in body  # 日期组 + 分页 "x / y"
     assert "上一页" in body and "下一页" in body
 
 
@@ -134,7 +133,7 @@ def test_card_shows_hook_and_weekday():
 
 def test_daily_page():
     status, _, body = web.route("GET", "/daily", b"", {})
-    assert status == 200 and "AI 日报" in body and "发票工具" in body
+    assert status == 200 and "商业机会日报" in body and "发票工具" in body
 
 
 def test_web_hides_opportunities_below_30(monkeypatch):
@@ -154,7 +153,7 @@ def test_web_hides_opportunities_below_30(monkeypatch):
     assert [o["idea"] for o in json.loads(api)] == ["应展示"]
 
 
-def test_web_hides_non_ai_products_even_when_score_is_high(monkeypatch):
+def test_web_keeps_non_ai_products_when_they_pass_the_demand_score(monkeypatch):
     physical = {"id": "p", "idea": "普通毛绒玩具", "score": 90, "verdict": "真需求",
                 "reason": "有人买", "url": "https://x", "source": "tiktok",
                 "is_ai_application": False}
@@ -164,8 +163,8 @@ def test_web_hides_non_ai_products_even_when_score_is_high(monkeypatch):
     _, _, page = web.route("GET", "/app", b"", {})
     _, _, api = web.route("GET", "/api/opportunities", b"", {})
 
-    assert "普通毛绒玩具" not in page
-    assert json.loads(api) == []
+    assert "普通毛绒玩具" in page
+    assert [o["idea"] for o in json.loads(api)] == ["普通毛绒玩具"]
 
 
 def test_daily_api_never_labels_yesterday_as_today(monkeypatch):
@@ -188,7 +187,7 @@ def test_sources_page_lists_long_term_sources_and_schedule():
 
     assert status == 200
     assert "Hugging Face Spaces" in body and "Futurepedia" in body
-    assert "AI 行业应用专线" in body and "07:00 / 13:00 / 19:00" in body
+    assert "行业应用专线" in body and "07:00 / 13:00 / 19:00" in body
 
 
 def test_dark_mode_toggle_present():

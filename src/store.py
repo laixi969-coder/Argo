@@ -33,8 +33,6 @@ def _loaded(opps, *, include_demo: bool = False) -> list[dict]:
         if not include_demo and is_demo_item(o):
             continue
         enriched = taxonomy.enrich(dict(o))
-        if enriched.get("is_ai_application") is not True:
-            continue
         loaded.append(enriched)
     return loaded
 
@@ -47,8 +45,6 @@ def _merge(existing: list[dict] | None, incoming: list[dict], day: str) -> list[
             continue
         enriched = dict(o)
         taxonomy.enrich(enriched)
-        if enriched.get("is_ai_application") is not True:
-            continue
         enriched["id"] = item_id(enriched)
         enriched["date"] = day
         merged[enriched["id"]] = enriched

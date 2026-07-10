@@ -31,8 +31,6 @@ def verify(day: str | None = None) -> int:
             raise RuntimeError(f"今日历史第 {i} 条商业潜力标签无效")
         if not isinstance(o.get("tags"), list) or not o["tags"]:
             raise RuntimeError(f"今日历史第 {i} 条标签缺失")
-        if o.get("is_ai_application") is not True:
-            raise RuntimeError(f"今日历史第 {i} 条不是 AI 应用")
     print(f"[ok] 今日历史校验通过：{day}，累计 {len(opps)} 条")
     return len(opps)
 

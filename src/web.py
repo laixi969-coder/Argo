@@ -551,7 +551,7 @@ html[data-theme=light]{
 }
 """
 
-_NAV = [("内容", [("/", "精选"), ("/all", "全部 AI 应用"), ("/daily", "AI 日报"), ("/saved", "我的收藏")]),
+_NAV = [("机会", [("/", "精选机会"), ("/all", "全部机会"), ("/daily", "商业机会日报"), ("/saved", "我的收藏")]),
         ("雷达", [("/sources", "长期信息源")]),
         ("接入", [("/agent", "Agent 接入")]),
         ("更多", [("/feedback", "反馈"), ("/settings", "舰长设置")])]
@@ -584,7 +584,7 @@ def _hook(o: dict, n: int = 96) -> str:
 
 
 def _vclass(v: str) -> str:
-    return {"伪机会": "tag vf", "待验证": "tag vw"}.get(v, "tag v")
+    return {"伪机会": "tag vf", "伪需求": "tag vf", "待验证": "tag vw"}.get(v, "tag v")
 
 
 def _cat_tag(o: dict) -> str:
@@ -611,6 +611,15 @@ def _potential_tag(o: dict) -> str:
         return ""
     css = {"高": "ph", "中": "pm", "低": "pl"}[value]
     return f'<span class="tag {css}">{esc(_potential_label(o))}</span>'
+
+
+def _stage_tag(o: dict) -> str:
+    """显示机会阶段，避免把一条线索包装成已验证的好生意。"""
+    stage = str(o.get("business_stage") or "").strip()
+    if not stage:
+        return ""
+    css = "ph" if stage == "好生意候选" else ("pm" if stage in {"已验证市场", "可小试"} else "pl")
+    return f'<span class="tag {css}">{esc(stage)}</span>'
 
 
 def _industry_tag(o: dict) -> str:
@@ -732,7 +741,7 @@ def _card(o: dict, rank: int) -> str:
 <article>
 <div class=meta><span class=src>{esc(o.get('source',''))}</span>
 <span class="{_vclass(o.get('verdict',''))}">{esc(o.get('verdict',''))}</span>
-{_potential_tag(o)}{_type_tag(o)}{_cat_tag(o)}{_industry_tag(o)}</div>
+{_stage_tag(o)}{_potential_tag(o)}{_type_tag(o)}{_cat_tag(o)}{_industry_tag(o)}</div>
 <h3><a href="/items/{aesc(o.get('id',''))}">{esc(o.get('idea',''))}</a></h3>
 <p class=summary>{esc(_hook(o))}</p>
 {_keyword_tags(o)}
@@ -885,12 +894,12 @@ def _landing() -> str:
 <header class=lhero>
 <video class=lherobg autoplay muted loop playsinline preload=metadata poster="/static/hero-poster.jpg"><source src="/static/hero.mp4" type="video/mp4"></video>
 <div class=lherobg-scrim></div>
-<div class=lkicker>私人产品机会雷达</div>
-<h1>每天替你挑出<em>值得做</em>、<em>能赚钱</em>的产品机会</h1>
-<p class=lead>自动扫描公开数据源，筛掉伪需求，只留下有人在痛、有人愿掏钱的方向。</p>
+<div class=lkicker>商业机会发现与挖掘</div>
+<h1>从商业机会，挖到<em>好生意</em></h1>
+<p class=lead>扫描真实需求、市场解法和行业变化；先证明谁在痛、谁会付钱，再判断能不能做成一门好生意。</p>
 <div class=lcta>
-<a class=p href="/signup">免费开始 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></a>
-<a class=s href="#today">看看今天挖到了什么</a>
+<a class=p href="/all">开始发现 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></a>
+<a class=s href="#today">看今天的机会</a>
 </div>
 </header>
 
@@ -902,19 +911,19 @@ def _landing() -> str:
 </div>
 
 <section class=lproc>
-<h2 class=lproc-h>从噪音到决策，四步跑完</h2>
-<p class=lproc-s>每天清晨自动跑完全流程，你只看结果</p>
+<h2 class=lproc-h>不是找点子，是筛一门能成立的生意</h2>
+<p class=lproc-s>每条机会都从需求证据走到最小验证，拒绝把热度当成付费意愿</p>
 <div class=lsteps>
-<div class=lstep><div class=sn>01 · SCAN</div><h3>广度扫描</h3><p>每天自动扫多个公开数据源，捞出真实需求线索。</p></div>
-<div class=lstep><div class=sn>02 · JUDGE</div><h3>机会判定</h3><p>价值·共识·模式·求真四道闸 + 三面镜子，戳破伪机会、标记真机会。</p></div>
-<div class=lstep><div class=sn>03 · ANALYZE</div><h3>变现分析</h3><p>痛点、谁愿意付费、变现路径、切入点、风险，逐条结构化输出。</p></div>
-<div class=lstep><div class=sn>04 · DIVE</div><h3>随时深挖</h3><p>网页或 Telegram 里直接追问某条机会，像有个懂行的操盘军师。</p></div>
+<div class=lstep><div class=sn>01 · FIND</div><h3>发现损失</h3><p>从求购、抱怨、替代方案、行业案例和已有产品中找真实行为，而不是追热点。</p></div>
+<div class=lstep><div class=sn>02 · PROVE</div><h3>证明需求</h3><p>用价值、共识、模式、求真四道闸，区分线索、真需求与明确该止损的伪机会。</p></div>
+<div class=lstep><div class=sn>03 · TEST</div><h3>验证生意</h3><p>明确买单人、收费方式、市场证据、最大风险和下一步最小付费验证。</p></div>
+<div class=lstep><div class=sn>04 · BUILD</div><h3>走向好生意</h3><p>只有市场已验证、证据足够强、单位经济有路可走，才标为「好生意候选」。</p></div>
 </div>
 </section>
 
 {teaser}
 
-<div class=lfoot>金羊毛 Argo · 私人产品机会雷达</div>
+<div class=lfoot>金羊毛 Argo · 商业机会发现与挖掘</div>
 """
     base = _base()
     ld = _jsonld({
@@ -924,11 +933,11 @@ def _landing() -> str:
     })
     return f"""<!doctype html><html lang=zh><head><meta charset=utf-8>
 <meta name=viewport content="width=device-width,initial-scale=1">
-<title>金羊毛 Argo · 每天找到值得做、能赚钱的 AI 产品机会</title>
-<meta name=description content="金羊毛 Argo：每天自动扫描 Reddit、Product Hunt、Hacker News、GitHub 等公开源，用真需求框架筛出有人在痛、有人愿掏钱的 AI 应用与产品机会，给出痛点、买单人群、变现路径与切入点。">
+<title>金羊毛 Argo · 从商业机会到好生意</title>
+<meta name=description content="金羊毛 Argo：每天扫描 Reddit、Product Hunt、Hacker News、GitHub、TikTok 等公开源，以真需求框架筛出实体、服务、内容与 AI 的商业机会，给出证据、买单人、变现路径和最小验证动作。">
 <link rel=canonical href="{aesc(base)}/">
-<meta property="og:title" content="金羊毛 Argo · 每天找到值得做、能赚钱的 AI 产品机会">
-<meta property="og:description" content="每天自动扫描公开源，筛出真需求产品机会：痛点、谁买单、怎么变现。">
+<meta property="og:title" content="金羊毛 Argo · 从商业机会到好生意">
+<meta property="og:description" content="每天扫描公开源，以真需求框架筛出商业机会：证据、谁买单、怎么变现、下一步怎么验证。">
 <meta property="og:type" content="website"><meta property="og:url" content="{aesc(base)}/">
 <meta property="og:image" content="{aesc(base)}/static/logo-on-light.png">
 <meta property="og:site_name" content="金羊毛 Argo"><meta property="og:locale" content="zh_CN">
@@ -947,8 +956,8 @@ def _featured(welcome: bool = False) -> str:
     wb = ('<div class=welcome><b>欢迎来到金羊毛 Argo</b>'
           '每条机会都判过「值不值得做」，点进去看痛点、谁买单、怎么变现。'
           '想深挖某条？详情页直接问 Argo。</div>') if welcome else ''
-    head = (wb + '<h1 class=ttl>精选</h1><p class=sub>有人在痛 + 有人愿掏钱 · AI 筛出的产品机会</p>'
-            '<p class=legend>每条左侧是「机会分」：AI 按真需求框架打分，满分 100，越高越值得做。</p>'
+    head = (wb + '<h1 class=ttl>精选机会</h1><p class=sub>有人在痛 · 有人为解决它付过成本 · 有机会做成一门好生意</p>'
+            '<p class=legend>每条左侧是「机会分」：按真需求证据、支付路径和交付风险评分，满分 100。分数不是结论，请同时看机会阶段。</p>'
             '<div class=hr></div>')
     head += _toolbar("全部", "", "全部行业")
     if not days:
@@ -1013,8 +1022,8 @@ def _all(query: dict) -> str:
     nxt = f'<a href="/all?page={page+1}{extra}">下一页<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-left: 2px;"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></a>' if page < pages else '<span>下一页</span>'
     body += f'<div class=pager>{prev}<span>{page} / {pages}</span>{nxt}</div>'
     canon = "/all" if page == 1 else f"/all?page={page}"
-    return _page("金羊毛 Argo · 全部 AI 产品机会库", body, "/all",
-                 desc=f"金羊毛 Argo 机会库：{total} 条经真需求框架判定的 AI 应用与产品机会，按行业与类目浏览，每条含痛点、买单人群、变现路径。",
+    return _page("金羊毛 Argo · 全部商业机会", body, "/all",
+                 desc=f"金羊毛 Argo 机会库：{total} 条经真需求框架判定的商业机会，覆盖实体、服务、内容与 AI；每条含痛点、买单人群、变现路径和验证动作。",
                  canonical=canon, noindex=bool(q))
 
 
@@ -1025,7 +1034,7 @@ def _detail(item_id: str) -> tuple[int, str]:
     safe_link = telegram.safe_url(o.get("url", ""))
     domain = urllib.parse.urlsplit(safe_link).netloc or "原文"
     detail_labels = [
-        _potential_label(o), o.get("category"), o.get("industry"),
+        o.get("business_stage"), _potential_label(o), o.get("category"), o.get("industry"),
         o.get("opportunity_type"), *(o.get("tags") or []),
     ]
     tags = "".join(
@@ -1110,10 +1119,14 @@ async function argoAsk(){{
 
 def _analysis(o: dict) -> str:
     """详情页核心：站在决策者视角的结构化分析。空字段不渲染。"""
-    items = [("商业证据", o.get("commercial_evidence")),
+    items = [("机会阶段", o.get("business_stage")),
+             ("真需求结论", o.get("verdict")),
+             ("证据强度", o.get("evidence_strength")),
+             ("市场验证", o.get("market_proof")),
+             ("商业证据", o.get("commercial_evidence")),
              ("痛点", o.get("pain")), ("谁愿意付费", o.get("buyer")),
              ("变现路径", o.get("money")), ("商业切入点", o.get("angle")),
-             ("风险", o.get("risk"))]
+             ("风险", o.get("risk")), ("下一步验证", o.get("next_validation"))]
     rows = "".join(
         f'<div class=item><div class=lab>{lab}</div><div class=txt>{esc(v)}</div></div>'
         for lab, v in items if (v or "").strip())
@@ -1124,7 +1137,7 @@ def _analysis(o: dict) -> str:
 
 def _daily() -> str:
     days = _visible_days()
-    head = '<h1 class=ttl>AI 日报</h1><p class=sub>当日机会精简清单，适合通读</p><div class=hr></div>'
+    head = '<h1 class=ttl>商业机会日报</h1><p class=sub>当日机会精简清单：从需求线索到好生意候选</p><div class=hr></div>'
     if not days:
         return _page("金羊毛 Argo · 日报", head + '<div class=empty><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><b>今天还没出日报</b>流水线跑完后会自动生成</div>', "/daily")
     day, all_opps = days[0]
@@ -1142,14 +1155,14 @@ def _daily() -> str:
     body = head + f'<h2 class=daygrp>{esc(day)} {_weekday(day)} · {len(all_opps)} 条</h2>{rows}{empty}'
     ld = _jsonld({
         "@context": "https://schema.org", "@type": "ItemList",
-        "name": f"{day} AI 产品机会日报 · 金羊毛 Argo",
+        "name": f"{day} 商业机会日报 · 金羊毛 Argo",
         "itemListElement": [
             {"@type": "ListItem", "position": i + 1, "name": o.get("idea", ""),
              "url": f"{_base()}/items/{o.get('id','')}"}
             for i, o in enumerate(all_opps)],
     })
-    return _page(f"{day} AI 产品机会日报 · 金羊毛 Argo", body, "/daily",
-                 desc=f"{day} 金羊毛 Argo 日报：{len(all_opps)} 条通过真需求筛选的 AI 应用与产品机会，含痛点、买单人群与变现路径。",
+    return _page(f"{day} 商业机会日报 · 金羊毛 Argo", body, "/daily",
+                 desc=f"{day} 金羊毛 Argo 日报：{len(all_opps)} 条通过真需求筛选的商业机会，含痛点、买单人群、变现路径与下一步验证。",
                  canonical="/daily", jsonld=ld)
 
 
@@ -1411,9 +1424,9 @@ def route(method: str, raw_path: str, body: bytes, headers: dict) -> tuple[int, 
         host = _base()
         return 200, "text/plain", (
             "# 金羊毛 Argo\n\n"
-            "> 每天自动扫描 Reddit、Product Hunt、Hacker News、GitHub、Hugging Face 等公开源，"
-            "用「真需求」框架（价值·共识·模式·求真四道闸）筛出有人在痛、有人愿掏钱的 AI 应用与产品机会，"
-            "每条给出痛点、买单人群、变现路径、切入点与风险。\n\n"
+            "> 每天自动扫描 Reddit、Product Hunt、Hacker News、GitHub、Hugging Face、TikTok 等公开源，"
+            "用「真需求」框架（价值·共识·模式·求真四道闸）筛出实体、服务、内容与 AI 的商业机会；"
+            "每条给出证据、买单人群、变现路径、风险与最小验证动作。\n\n"
             "## 核心页面\n"
             f"- [今日日报]({host}/daily)：当日通过筛选的机会清单\n"
             f"- [全部机会库]({host}/all)：按行业/类目浏览的完整历史\n"

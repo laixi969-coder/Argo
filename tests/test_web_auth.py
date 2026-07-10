@@ -1,6 +1,6 @@
 import json
 import pytest
-from src import web, users, auth, plans, billing, store, saved
+from src import web, users, auth, plans, billing, store, saved, clock
 
 
 @pytest.fixture(autouse=True)
@@ -82,8 +82,8 @@ def test_pricing_page_404():
 
 def test_landing_for_logged_out():
     _, _, body = web.route("GET", "/", b"", {})
-    assert "值得做、能赚钱" in body and "免费开始" in body  # 落地页 hero + CTA
-    assert "广度扫描" in body and "变现分析" in body          # 工作流程
+    assert "从商业机会，挖到" in body and "开始发现" in body
+    assert "发现损失" in body and "验证生意" in body
 
 
 def test_app_route_shows_feed():
@@ -145,7 +145,7 @@ def test_api_is_fully_accessible(monkeypatch):
     opps = [{"idea": f"机会{i}", "verdict": "值得做", "score": 90 - i, "reason": "r",
              "url": f"http://x/{i}", "source": "s", "category": "AI应用",
              "is_ai_application": True} for i in range(8)]
-    store.append(opps, day=date.today().isoformat())
+    store.append(opps, day=clock.today_iso())
     # 匿名/免费：API 应该返回全部 (不被付费墙拦截)
     _, _, body = web.route("GET", "/api/opportunities", b"", {})
     assert len(_j.loads(body)) == 8

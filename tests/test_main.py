@@ -89,3 +89,20 @@ def test_long_term_outcome_sources_are_registered():
 
 def test_source_catalog_matches_runtime_registry():
     assert set(source_catalog.SOURCES) == set(main.SOURCES)
+
+
+def test_run_keeps_non_ai_real_demand_signals(monkeypatch, tmp_path):
+    sent, _ = _wire(monkeypatch, tmp_path, {
+        "tiktok": lambda: [{
+            "source": "tiktok", "title": "需要个人厨师", "raw_text": "愿意付费",
+            "url": "https://example.test/chef", "signal": 90,
+        }],
+    })
+    monkeypatch.setattr(main.extract, "extract_ideas", lambda opps, **k: [
+        dict(o, idea="高净值家庭的个人厨师服务", is_demand=True, is_ai_application=False)
+        for o in opps
+    ])
+
+    main.run()
+
+    assert sent["final"][0]["idea"] == "高净值家庭的个人厨师服务"
