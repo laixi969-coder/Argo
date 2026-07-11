@@ -4,7 +4,7 @@ import secrets
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from src.sources import eleduck, futurepedia, github, hackernews, huggingface, industry_cases, producthunt, reddit, reddit_comments_tikhub, reddit_tikhub, tikhub, v2ex
+from src.sources import eleduck, futurepedia, github, hackernews, huggingface, industry_cases, producthunt, reddit, reddit_comments_tikhub, reddit_tikhub, tikhub, v2ex, xhs_tikhub
 from src import config, dedup, email_report, extract, kv, prefilter, rank, score, store, telegram_report, verify_daily
 
 
@@ -21,6 +21,7 @@ SOURCES = {
     "tikhub": tikhub.fetch,
     "v2ex": v2ex.fetch,  # 国内直连源，免费无 key：外包付费需求+奇思妙想+分享创造
     "eleduck": eleduck.fetch,  # 国内直连源，免费无 key：独立产品+招聘+出海
+    "xhs": xhs_tikhub.fetch,  # 小红书需求搜索（TikHub）：求推荐/有偿求/平替
 }
 REPORT = Path(__file__).resolve().parent.parent / "data" / "latest_report.json"
 
