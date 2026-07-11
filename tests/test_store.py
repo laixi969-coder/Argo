@@ -7,7 +7,7 @@ def test_empty_rerun_keeps_existing_local_snapshot(monkeypatch, tmp_path):
     monkeypatch.setattr(store, "HISTORY", tmp_path / "history")
     monkeypatch.setattr(store.kv, "enabled", lambda: False)
 
-    store.append([{"idea": "已有 AI 机会", "url": "https://reddit.com/r/1",
+    store.append([{"idea": "已有 AI 机会", "url": "https://reddit.com/r/1", "reason": "r",
                    "is_ai_application": True}], day="2026-06-30")
     store.append([], day="2026-06-30")
 
@@ -19,28 +19,28 @@ def test_three_runs_merge_same_day_without_losing_history(monkeypatch, tmp_path)
     monkeypatch.setattr(store, "HISTORY", tmp_path / "history")
     monkeypatch.setattr(store.kv, "enabled", lambda: False)
 
-    store.append([{"idea": "早班", "url": "https://reddit.com/r/a", "score": 70,
-                   "is_ai_application": True}], day="2026-06-30")
-    store.append([{"idea": "午班", "url": "https://reddit.com/r/b", "score": 90,
-                   "is_ai_application": True}], day="2026-06-30")
-    store.append([{"idea": "晚班", "url": "https://reddit.com/r/c", "score": 80,
-                   "is_ai_application": True}], day="2026-06-30")
+    store.append([{"idea": "早班机会", "url": "https://reddit.com/r/a", "score": 70,
+                   "reason": "r", "is_ai_application": True}], day="2026-06-30")
+    store.append([{"idea": "午班机会", "url": "https://reddit.com/r/b", "score": 90,
+                   "reason": "r", "is_ai_application": True}], day="2026-06-30")
+    store.append([{"idea": "晚班机会", "url": "https://reddit.com/r/c", "score": 80,
+                   "reason": "r", "is_ai_application": True}], day="2026-06-30")
 
     saved = json.loads((store.HISTORY / "2026-06-30.json").read_text())
-    assert [o["idea"] for o in saved] == ["午班", "晚班", "早班"]
+    assert [o["idea"] for o in saved] == ["午班机会", "晚班机会", "早班机会"]
 
 
 def test_empty_day_is_visible_in_cloud_history(monkeypatch):
     monkeypatch.setattr(store.kv, "enabled", lambda: True)
     monkeypatch.setattr(store.kv, "smembers", lambda key: ["2026-06-30", "2026-06-29"])
     snapshots = {"history:2026-06-30": [], "history:2026-06-29": [
-        {"idea": "昨天", "is_ai_application": True}
+        {"idea": "昨天的机会", "url": "https://x.com/y", "reason": "r", "is_ai_application": True}
     ]}
     monkeypatch.setattr(store.kv, "get_many_json", lambda keys: [snapshots[key] for key in keys])
 
     days = store.load_days()
     assert days[0] == ("2026-06-30", [])
-    assert days[1][0] == "2026-06-29" and days[1][1][0]["idea"] == "昨天"
+    assert days[1][0] == "2026-06-29" and days[1][1][0]["idea"] == "昨天的机会"
 
 
 def test_empty_rerun_keeps_existing_cloud_snapshot(monkeypatch):
@@ -63,22 +63,22 @@ def test_cloud_rerun_merges_existing_snapshot(monkeypatch):
     monkeypatch.setattr(
         store.kv,
         "get_json",
-        lambda key: [{"idea": "早班", "url": "https://reddit.com/r/a", "id": "old",
-                      "date": "2026-06-30", "score": 70, "is_ai_application": True}],
+        lambda key: [{"idea": "早班机会", "url": "https://reddit.com/r/a", "id": "old",
+                      "date": "2026-06-30", "score": 70, "reason": "r", "is_ai_application": True}],
     )
     monkeypatch.setattr(store.kv, "set_json", lambda key, value: written.update({key: value}))
     monkeypatch.setattr(store.kv, "sadd", lambda *args: None)
 
-    store.append([{"idea": "午班", "url": "https://reddit.com/r/b", "score": 90,
-                   "is_ai_application": True}], day="2026-06-30")
+    store.append([{"idea": "午班机会", "url": "https://reddit.com/r/b", "score": 90,
+                   "reason": "r", "is_ai_application": True}], day="2026-06-30")
 
-    assert [o["idea"] for o in written["history:2026-06-30"]] == ["午班", "早班"]
+    assert [o["idea"] for o in written["history:2026-06-30"]] == ["午班机会", "早班机会"]
 
 
 def test_merge_same_day_keeps_distinct_items_even_when_title_base_matches():
     merged = store._merge(
         [{
-            "idea": "给内容团队的 AI 视频生成与分镜工作台：Video Maker",
+            "idea": "给内容团队的 AI 视频生成与分镜工作台：Video Maker", "reason": "r",
             "url": "https://a.test/video",
             "score": 40,
             "category": "AI应用",
@@ -86,7 +86,7 @@ def test_merge_same_day_keeps_distinct_items_even_when_title_base_matches():
             "is_ai_application": True,
         }],
         [{
-            "idea": "给内容团队的 AI 视频生成与分镜工作台：Scene Studio",
+            "idea": "给内容团队的 AI 视频生成与分镜工作台：Scene Studio", "reason": "r",
             "url": "https://b.test/scene",
             "score": 45,
             "category": "AI应用",
@@ -102,16 +102,16 @@ def test_merge_same_day_keeps_distinct_items_even_when_title_base_matches():
 
 def test_production_reads_and_merges_never_expose_demo_items(monkeypatch):
     monkeypatch.setattr(store.kv, "enabled", lambda: True)
-    fake = {"idea": "演示", "url": "https://example.com/0", "date": "2026-06-30"}
-    real = {"idea": "真实", "url": "https://reddit.com/r/x", "date": "2026-06-30",
+    fake = {"idea": "演示机会", "url": "https://example.com/0", "reason": "r", "date": "2026-06-30"}
+    real = {"idea": "真实机会", "url": "https://reddit.com/r/x", "reason": "r", "date": "2026-06-30",
             "is_ai_application": True}
     monkeypatch.setattr(store.kv, "get_json", lambda key: [fake, real])
     monkeypatch.setattr(store.kv, "get_many_json", lambda keys: [[fake, real] for _ in keys])
     monkeypatch.setattr(store.kv, "smembers", lambda key: ["2026-06-30"])
 
-    assert [o["idea"] for o in store.load_day("2026-06-30")] == ["真实"]
-    assert [o["idea"] for o in store.load_days()[0][1]] == ["真实"]
-    assert [o["idea"] for o in store._merge([fake], [real], "2026-06-30")] == ["真实"]
+    assert [o["idea"] for o in store.load_day("2026-06-30")] == ["真实机会"]
+    assert [o["idea"] for o in store.load_days()[0][1]] == ["真实机会"]
+    assert [o["idea"] for o in store._merge([fake], [real], "2026-06-30")] == ["真实机会"]
 
 
 def test_legacy_failed_judgement_is_safely_downgraded_on_read(monkeypatch):
@@ -129,9 +129,9 @@ def test_legacy_failed_judgement_is_safely_downgraded_on_read(monkeypatch):
 
 
 def test_non_ai_history_is_retained_as_a_business_opportunity():
-    physical = {"idea": "普通毛绒玩具", "url": "https://x.com/toy",
+    physical = {"idea": "普通毛绒玩具", "url": "https://x.com/toy", "reason": "r",
                 "is_ai_application": False}
-    ai = {"idea": "AI 质检助手", "url": "https://x.com/ai",
+    ai = {"idea": "AI 质检助手", "url": "https://x.com/ai", "reason": "r",
           "is_ai_application": True}
 
     assert [o["idea"] for o in store._loaded([physical, ai])] == ["普通毛绒玩具", "AI 质检助手"]
@@ -149,7 +149,7 @@ def test_cloud_read_failure_falls_back_to_local_latest(monkeypatch, tmp_path):
     monkeypatch.setattr(store, "HISTORY", tmp_path / "history")
     monkeypatch.setattr(store, "LATEST", tmp_path / "latest.json")
     store.LATEST.write_text(json.dumps([{
-        "idea": "本地 AI 备份", "url": "https://x.com/ai", "score": 80,
+        "idea": "本地 AI 备份", "url": "https://x.com/ai", "score": 80, "reason": "r",
         "is_ai_application": True,
     }]))
 

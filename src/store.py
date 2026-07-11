@@ -26,11 +26,31 @@ def is_demo_item(o: dict) -> bool:
     return bool(o.get("_demo")) or url in {f"https://example.com/{i}" for i in range(6)}
 
 
+def is_publishable(o: dict) -> bool:
+    """写入与读取的公开门槛：只有走过流水线的机会才有资格上站。
+
+    历史教训：一条 {"idea":"x","score":80} 的测试残留裸对象混进生产 KV 后，
+    被 enrich 自动补齐分类字段、以 80 分高潜力挂上公开站。判据取流水线的
+    结构性痕迹：精判两条路径都必写 reason；idea 是一句话机会而非单字符。
+    不要求 verdict/source——精判失败的合法旧数据没有它们。
+    """
+    # ponytail: 结构判据挡「从未走过流水线」的裸对象；伪造 reason 的定向投毒
+    # 需要签名写入才能防，等出现再上。
+    return bool(
+        str(o.get("reason") or "").strip()
+        and len(str(o.get("idea") or "").strip()) >= 4
+        and str(o.get("idea") or "").strip() != "未知"
+        and str(o.get("url") or "").strip()
+    )
+
+
 def _loaded(opps, *, include_demo: bool = False) -> list[dict]:
     """读取时补齐新字段并应用安全迁移，不要求手工改历史 JSON。"""
     loaded = []
     for o in opps or []:
         if not include_demo and is_demo_item(o):
+            continue
+        if not is_publishable(o):
             continue
         enriched = taxonomy.enrich(dict(o))
         loaded.append(enriched)
@@ -41,7 +61,7 @@ def _merge(existing: list[dict] | None, incoming: list[dict], day: str) -> list[
     """合并同日多班扫描；同一机会用新结果刷新，历史机会不丢。"""
     merged = {}
     for o in [*(existing or []), *incoming]:
-        if is_demo_item(o):
+        if is_demo_item(o) or not is_publishable(o):
             continue
         enriched = dict(o)
         taxonomy.enrich(enriched)

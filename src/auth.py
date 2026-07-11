@@ -87,14 +87,20 @@ def _thash(email: str) -> str:
     return hashlib.sha256(email.strip().lower().encode()).hexdigest()[:16]
 
 
+def _pw_tag(uid: str) -> str:
+    """密码哈希指纹。签名掺入它，改密后旧 cookie 与旧重置链接立即失效。"""
+    u = users.get(uid) or {}
+    return str(u.get("pw") or "")[:12]
+
+
 def _sign(uid: str) -> str:
-    return hmac.new(_secret(), uid.encode(), hashlib.sha256).hexdigest()[:32]
+    return hmac.new(_secret(), f"{uid}.{_pw_tag(uid)}".encode(), hashlib.sha256).hexdigest()[:32]
 
 
 def make_reset_token(uid: str, ttl: int = 3600) -> str:
     import time
     exp = int(time.time()) + ttl
-    sig = hmac.new(_secret(), f"{uid}.{exp}".encode(), hashlib.sha256).hexdigest()[:32]
+    sig = hmac.new(_secret(), f"{uid}.{exp}.{_pw_tag(uid)}".encode(), hashlib.sha256).hexdigest()[:32]
     return f"{uid}.{exp}.{sig}"
 
 
@@ -102,7 +108,7 @@ def verify_reset_token(token: str):
     import time
     try:
         uid, exp, sig = token.split(".")
-        good = hmac.new(_secret(), f"{uid}.{exp}".encode(), hashlib.sha256).hexdigest()[:32]
+        good = hmac.new(_secret(), f"{uid}.{exp}.{_pw_tag(uid)}".encode(), hashlib.sha256).hexdigest()[:32]
         if not hmac.compare_digest(sig, good) or int(exp) < time.time():
             return None
         return uid
@@ -134,9 +140,15 @@ def current_user(cookie_header: str) -> dict | None:
             return None
         token = jar[COOKIE].value
         uid, _, sig = token.partition(".")
-        if not uid or not hmac.compare_digest(sig, _sign(uid)):
+        if not uid:
             return None
-        u = users.get(uid)
-        return {"id": uid, "email": u["email"], "plan": u.get("plan", "free")} if u else None
+        u = users.get(uid)  # 先取用户，签名要掺密码指纹（也省去 _sign 内重复读取）
+        if not u:
+            return None
+        pw_tag = str(u.get("pw") or "")[:12]
+        good = hmac.new(_secret(), f"{uid}.{pw_tag}".encode(), hashlib.sha256).hexdigest()[:32]
+        if not hmac.compare_digest(sig, good):
+            return None
+        return {"id": uid, "email": u["email"], "plan": u.get("plan", "free")}
     except Exception:
         return None

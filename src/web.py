@@ -1292,8 +1292,8 @@ def _saved_page() -> str:
 
 def _admin() -> str:
     u = _req_user.get()
-    admin = config.get("ARGO_ADMIN_EMAIL")
-    if not u or not admin or u["email"] != admin:
+    admin = (config.get("ARGO_ADMIN_EMAIL") or "").strip().lower()
+    if not u or not admin or u["email"].strip().lower() != admin:
         return _page("金羊毛 Argo", '<p class=empty>仅运营可见。</p>', "")
     us = users.all_users()
     ints = billing.intents()

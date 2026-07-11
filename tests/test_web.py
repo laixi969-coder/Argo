@@ -200,7 +200,7 @@ def test_attr_escaping_blocks_injection(tmp_path, monkeypatch):
     monkeypatch.setattr(store, "LATEST", tmp_path / "l2.json")
     from datetime import date as _d
     evil = 'http://x" onmouseover="alert(1)'
-    store.append([{"idea": "i", "verdict": "值得做", "score": 80, "reason": "r",
+    store.append([{"idea": "注入测试机会", "verdict": "值得做", "score": 80, "reason": "r",
                    "url": evil, "source": "s", "category": "AI应用", "pain": "p",
                    "is_ai_application": True}],
                  day=_d.today().isoformat())
@@ -218,7 +218,7 @@ def test_detail_blocks_non_http_source_url(tmp_path, monkeypatch):
     monkeypatch.setattr(store, "LATEST", tmp_path / "l3.json")
     from datetime import date as _d
     evil = "javascript:alert(1)"
-    store.append([{"idea": "i", "verdict": "待验证", "score": 50, "reason": "r",
+    store.append([{"idea": "注入测试机会", "verdict": "待验证", "score": 50, "reason": "r",
                    "url": evil, "source": "s", "category": "AI应用",
                    "is_ai_application": True}],
                  day=_d.today().isoformat())

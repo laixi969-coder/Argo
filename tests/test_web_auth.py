@@ -65,7 +65,7 @@ def test_upgrade_records_intent():
 
 def test_free_feed_ungated():
     # 放 8 条今天的机会，免费版应该全部显示
-    opps = [{"idea": f"机会{i}", "verdict": "值得做", "score": 90 - i, "reason": "r",
+    opps = [{"idea": f"测试机会{i}", "verdict": "值得做", "score": 90 - i, "reason": "r",
              "url": f"http://x/{i}", "source": "s", "category": "AI应用",
              "is_ai_application": True} for i in range(8)]
     from datetime import date
@@ -88,7 +88,7 @@ def test_landing_for_logged_out():
 
 def test_app_route_shows_feed():
     from datetime import date
-    store.append([{"idea": "x", "verdict": "值得做", "score": 80, "reason": "r",
+    store.append([{"idea": "测试机会条目", "verdict": "值得做", "score": 80, "reason": "r",
                    "url": "http://x", "source": "s", "category": "AI应用",
                    "is_ai_application": True}], day=date.today().isoformat())
     _, _, body = web.route("GET", "/app", b"", {})
@@ -115,7 +115,7 @@ def test_web_chat_allows_multiple(monkeypatch):
 
 def test_detail_shows_login_prompt_for_deepdive():
     from datetime import date
-    store.append([{"idea": "x", "verdict": "值得做", "score": 80, "reason": "r",
+    store.append([{"idea": "测试机会条目", "verdict": "值得做", "score": 80, "reason": "r",
                    "url": "http://x", "source": "s", "category": "AI应用",
                    "is_ai_application": True}], day=date.today().isoformat())
     iid = store.item_id({"url": "http://x"})
@@ -142,7 +142,7 @@ def test_api_is_fully_accessible(monkeypatch):
     import json as _j
     from datetime import date
     monkeypatch.setattr(web.config, "get", lambda k, d=None: "")  # 无 token
-    opps = [{"idea": f"机会{i}", "verdict": "值得做", "score": 90 - i, "reason": "r",
+    opps = [{"idea": f"测试机会{i}", "verdict": "值得做", "score": 90 - i, "reason": "r",
              "url": f"http://x/{i}", "source": "s", "category": "AI应用",
              "is_ai_application": True} for i in range(8)]
     store.append(opps, day=clock.today_iso())
@@ -243,7 +243,7 @@ def test_signup_redirects_to_welcome():
 
 def test_welcome_banner_for_new_user():
     from datetime import date
-    store.append([{"idea": "x", "verdict": "值得做", "score": 80, "reason": "r",
+    store.append([{"idea": "测试机会条目", "verdict": "值得做", "score": 80, "reason": "r",
                    "url": "http://x", "source": "s", "category": "AI应用",
                    "is_ai_application": True}], day=date.today().isoformat())
     u = users.create("a@b.com", "password1")
@@ -256,7 +256,7 @@ def test_welcome_banner_for_new_user():
 
 def test_paywall_removed():
     from datetime import date
-    opps = [{"idea": f"机会{i}", "verdict": "值得做", "score": 90 - i, "reason": "r",
+    opps = [{"idea": f"测试机会{i}", "verdict": "值得做", "score": 90 - i, "reason": "r",
              "url": f"http://x/{i}", "source": "s", "category": "AI应用",
              "is_ai_application": True,
              "pain": "痛", "money": "钱"} for i in range(5)]
