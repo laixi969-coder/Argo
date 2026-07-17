@@ -88,6 +88,13 @@ def _run_unlocked():
     print(f"[漏斗] 精判+排序(去伪需求/未知) → {len(final)}")
     _save(final)
     store.append(final)
+    try:
+        cleanup = store.prune_expired()
+        if cleanup["removed"] or cleanup["retained"]:
+            print(f"[ok] 30 天历史清理：删 {cleanup['removed']} 天，保留收藏 {cleanup['retained']} 条")
+    except Exception as exc:
+        # 历史已安全写入；清理暂时失败不应影响当天榜单和推送。
+        print(f"[warn] 历史清理失败（不影响当天榜单）: {exc}")
     verify_daily.verify()
     dedup.mark_seen(final)  # 结果已存妥即登记去重，不受发送成败影响
     try:

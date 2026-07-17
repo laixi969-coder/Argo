@@ -2,18 +2,22 @@
 
 文件存储，不进数据库：data/history/YYYY-MM-DD.json，每个机会带稳定 id。
 load_all() 跨天合并、按日期倒序；get(id) 给详情页用。
+
+历史默认只保留 30 天；仍被用户收藏的机会是例外，会留在其原始快照中。
 """
 from __future__ import annotations
+from datetime import date, timedelta
 import hashlib
 import json
 import os
 from pathlib import Path
 
-from src import clock, kv, taxonomy
+from src import clock, kv, saved, taxonomy
 
 DATA = Path(__file__).resolve().parent.parent / "data"
 HISTORY = DATA / "history"
 LATEST = DATA / "latest_report.json"
+RETENTION_DAYS = 30
 
 
 def item_id(o: dict) -> str:
@@ -98,6 +102,69 @@ def append(opps: list[dict], day: str | None = None) -> None:
     tmp = p.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(_merge(existing, enriched, day), ensure_ascii=False))
     os.replace(tmp, p)
+
+
+def _expired_days(days: list[str], today: str) -> list[str]:
+    """找出到今天已满 30 天、应当清理的合法业务日。"""
+    cutoff = date.fromisoformat(today) - timedelta(days=RETENTION_DAYS)
+    expired = []
+    for day in days:
+        try:
+            if date.fromisoformat(day) <= cutoff:
+                expired.append(day)
+        except ValueError:
+            continue
+    return expired
+
+
+def _keep_saved(opps: list[dict] | None, saved_ids: set[str]) -> list[dict]:
+    """到期快照仅保留仍被收藏的原始条目，兼容没有 id 的旧快照。"""
+    return [
+        o for o in opps or []
+        if isinstance(o, dict) and o.get("id", item_id(o)) in saved_ids
+    ]
+
+
+def prune_expired(today: str | None = None) -> dict[str, int]:
+    """清理超过 30 天的历史，收藏中的机会不删。
+
+    由每日流水线在写入当日榜单后调用。返回清掉的快照数及保留的收藏条目数，
+    方便日志与测试；读请求不会触发写操作。
+    """
+    today = today or clock.today_iso()
+    saved_ids = saved.all_item_ids()
+    removed, retained = 0, 0
+    if kv.enabled():
+        days = kv.smembers("history:days")
+        for day in _expired_days(days, today):
+            kept = _keep_saved(kv.get_json(f"history:{day}"), saved_ids)
+            if kept:
+                kv.set_json(f"history:{day}", kept)
+                retained += len(kept)
+            else:
+                kv.delete(f"history:{day}")
+                kv.srem("history:days", day)
+                removed += 1
+        return {"removed": removed, "retained": retained}
+
+    if not HISTORY.exists():
+        return {"removed": removed, "retained": retained}
+    paths = {path.stem: path for path in HISTORY.glob("*.json")}
+    for day in _expired_days(list(paths), today):
+        path = paths[day]
+        try:
+            kept = _keep_saved(json.loads(path.read_text()), saved_ids)
+        except (OSError, json.JSONDecodeError):
+            kept = []
+        if kept:
+            tmp = path.with_suffix(".json.tmp")
+            tmp.write_text(json.dumps(kept, ensure_ascii=False))
+            os.replace(tmp, path)
+            retained += len(kept)
+        else:
+            path.unlink()
+            removed += 1
+    return {"removed": removed, "retained": retained}
 
 
 def _load_local_days() -> list[tuple[str, list[dict]]]:

@@ -24,6 +24,28 @@ def list_ids(uid: str) -> list[str]:
         return []
 
 
+def all_item_ids() -> set[str]:
+    """返回仍被任意账户收藏的机会 ID，供历史到期清理保留这些内容。"""
+    if kv.enabled():
+        uids = kv.smembers("users")
+        lists = kv.get_many_json([f"saved:{uid}" for uid in uids])
+        return {
+            item_id for ids in lists if isinstance(ids, list)
+            for item_id in ids if isinstance(item_id, str)
+        }
+    if not SAVED.exists():
+        return set()
+    kept = set()
+    for path in SAVED.glob("*.json"):
+        try:
+            ids = json.loads(path.read_text())
+        except Exception:
+            continue
+        if isinstance(ids, list):
+            kept.update(item_id for item_id in ids if isinstance(item_id, str))
+    return kept
+
+
 def purge(uid: str) -> None:
     if kv.enabled():
         kv.delete(f"saved:{uid}")

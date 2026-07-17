@@ -1,6 +1,57 @@
 import json
 
-from src import store
+from src import saved, store
+
+
+def _opp(name, url):
+    return {"idea": name, "url": url, "reason": "r", "is_ai_application": True}
+
+
+def test_prune_expired_removes_unsaved_local_history(monkeypatch, tmp_path):
+    monkeypatch.setattr(store, "HISTORY", tmp_path / "history")
+    monkeypatch.setattr(saved, "SAVED", tmp_path / "saved")
+    monkeypatch.setattr(store.kv, "enabled", lambda: False)
+    store.append([_opp("过期机会", "https://x.test/expired")], day="2026-07-01")
+    store.append([_opp("仍在保留期", "https://x.test/current")], day="2026-07-02")
+
+    result = store.prune_expired(today="2026-07-31")
+
+    assert result == {"removed": 1, "retained": 0}
+    assert not (store.HISTORY / "2026-07-01.json").exists()
+    assert (store.HISTORY / "2026-07-02.json").exists()
+
+
+def test_prune_expired_keeps_only_items_saved_by_any_user(monkeypatch, tmp_path):
+    monkeypatch.setattr(store, "HISTORY", tmp_path / "history")
+    monkeypatch.setattr(saved, "SAVED", tmp_path / "saved")
+    monkeypatch.setattr(store.kv, "enabled", lambda: False)
+    kept, discarded = _opp("已收藏机会", "https://x.test/kept"), _opp("未收藏机会", "https://x.test/drop")
+    store.append([kept, discarded], day="2026-07-01")
+    saved.toggle("another-user", store.item_id(kept))
+
+    result = store.prune_expired(today="2026-07-31")
+    remaining = json.loads((store.HISTORY / "2026-07-01.json").read_text())
+
+    assert result == {"removed": 0, "retained": 1}
+    assert [o["idea"] for o in remaining] == ["已收藏机会"]
+
+
+def test_prune_expired_cloud_keeps_saved_items(monkeypatch):
+    data = {"history:2026-07-01": [
+        dict(_opp("已收藏机会", "https://x.test/kept"), id="keep"),
+        dict(_opp("未收藏机会", "https://x.test/drop"), id="drop"),
+    ]}
+    days = {"2026-07-01"}
+    monkeypatch.setattr(store.kv, "enabled", lambda: True)
+    monkeypatch.setattr(store.kv, "smembers", lambda key: list(days))
+    monkeypatch.setattr(store.kv, "get_json", lambda key: data.get(key))
+    monkeypatch.setattr(store.kv, "set_json", lambda key, value: data.update({key: value}))
+    monkeypatch.setattr(store.kv, "delete", lambda key: data.pop(key, None))
+    monkeypatch.setattr(store.kv, "srem", lambda key, value: days.discard(value))
+    monkeypatch.setattr(saved, "all_item_ids", lambda: {"keep"})
+
+    assert store.prune_expired(today="2026-07-31") == {"removed": 0, "retained": 1}
+    assert [o["id"] for o in data["history:2026-07-01"]] == ["keep"]
 
 
 def test_empty_rerun_keeps_existing_local_snapshot(monkeypatch, tmp_path):

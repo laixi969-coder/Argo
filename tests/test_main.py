@@ -13,6 +13,7 @@ def _wire(monkeypatch, tmp_path, sources):
                         lambda opps, **k: [dict(o, verdict="真需求", score=70.0, reason="r") for o in opps])
     monkeypatch.setattr(main.dedup, "filter_fresh", lambda opps, **k: opps)
     monkeypatch.setattr(main.store, "append", lambda final, **k: None)  # 不写真实 data
+    monkeypatch.setattr(main.store, "prune_expired", lambda: {"removed": 0, "retained": 0})
     verified = {}
     monkeypatch.setattr(main.verify_daily, "verify", lambda: verified.update({"called": True}))
     seen = {}
