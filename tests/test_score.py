@@ -324,10 +324,22 @@ def test_score_keeps_fake_demand_when_explicit_disproof_exists():
 
 def test_score_accepts_market_validated_with_payment_proof():
     raw = '{"verdict":"市场已验证","score":82,"reason":"已有持续付费","market_proof":"100 名付费用户"}'
-    out = score_real_demand([{"idea": "x", "signal": 30}], llm=lambda p: raw)
+    out = score_real_demand([{
+        "idea": "x", "title": "x", "raw_text": "100 名付费用户",
+        "evidence_quotes": ["100 名付费用户"], "signal": 30,
+    }], llm=lambda p: raw)
 
     assert out[0]["verdict"] == "市场已验证"
     assert out[0]["market_proof"] == "100 名付费用户"
+
+
+def test_score_downgrades_market_proof_that_is_not_verbatim_source_evidence():
+    raw = '{"verdict":"市场已验证","score":82,"reason":"已有持续付费","market_proof":"100 名付费用户"}'
+    out = score_real_demand([{"idea": "x", "raw_text": "很多人喜欢这个产品", "signal": 30}],
+                            llm=lambda p: raw)
+
+    assert out[0]["verdict"] == "待验证"
+    assert out[0]["market_proof"] == "无"
 
 
 def test_score_keeps_ai_industry_category_and_hint():
@@ -396,7 +408,10 @@ def test_score_only_labels_a_good_business_candidate_with_strong_market_proof():
     raw = ('{"verdict":"市场已验证","score":91,"reason":"已有持续付费客户",'
            '"commercial_potential":"高","evidence_strength":"强",'
            '"market_proof":"12 家客户连续付费 6 个月"}')
-    item = score_real_demand([{"idea": "企业设备维保服务", "signal": 80}], llm=lambda p: raw)[0]
+    item = score_real_demand([{
+        "idea": "企业设备维保服务", "raw_text": "12 家客户连续付费 6 个月",
+        "evidence_quotes": ["12 家客户连续付费 6 个月"], "signal": 80,
+    }], llm=lambda p: raw)[0]
 
     assert item["business_stage"] == "好生意候选"
 

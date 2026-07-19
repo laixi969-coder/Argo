@@ -17,6 +17,7 @@ def test_extract_collects_demand_evidence_without_inventing_it():
       "cost_paid": "每月约 2 小时",
       "wtp_evidence": "未知",
       "frequency_urgency": "每月发生，中等紧迫",
+      "evidence_quotes": ["I do this monthly in sheets."],
       "missing_evidence": ["没有实际付款记录", "没有报价接受记录"]
     }'''
     opps = [{"title": "Need invoice splitting", "raw_text": "I do this monthly in sheets."}]
@@ -25,6 +26,7 @@ def test_extract_collects_demand_evidence_without_inventing_it():
     assert out[0]["customer"] == "自由职业者"
     assert out[0]["past_behavior"] == "发帖者每月手工拆分"
     assert out[0]["wtp_evidence"] == "未知"
+    assert out[0]["evidence_quotes"] == ["I do this monthly in sheets."]
     assert out[0]["missing_evidence"] == ["没有实际付款记录", "没有报价接受记录"]
 
 
@@ -36,6 +38,17 @@ def test_extract_bad_json_falls_back_without_fake_evidence():
     assert out[0]["past_behavior"] == "未知"
     assert out[0]["wtp_evidence"] == "未知"
     assert out[0]["missing_evidence"] == ["结构化证据提取失败"]
+    assert out[0]["evidence_quotes"] == []
+
+
+def test_extract_discards_model_quote_that_is_not_in_source_text():
+    response = ('{"idea":"发票拆分工具","evidence_quotes":['
+                '"I already pay $100 every month."]}')
+    out = extract_ideas([{"title": "Need invoice splitting", "raw_text": "I use sheets."}],
+                        llm=lambda p: response)
+
+    assert out[0]["evidence_quotes"] == []
+    assert "原帖核验" in out[0]["missing_evidence"][-1]
 
 
 def test_extract_broken_json_with_inner_quotes_does_not_dump_blob():

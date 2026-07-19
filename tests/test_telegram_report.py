@@ -32,6 +32,37 @@ def test_render_has_followup_hint():
     assert "第 N 条" in render(opps, [])
 
 
+def test_render_separates_ai_supply_side_track():
+    opps = [
+        {"idea": "实体产品", "verdict": "真需求", "score": 70, "reason": "有预算",
+         "url": "http://x", "source": "reddit", "radar_track": "真实需求主榜",
+         "evidence_quotes": ["I would pay for this service."]},
+        {"idea": "模型 Demo", "verdict": "待验证", "score": 50, "reason": "仅技术信号",
+         "url": "http://y", "source": "huggingface", "radar_track": "AI 供给副榜"},
+    ]
+
+    text = render(opps, [])
+
+    assert "真实需求主榜" in text and "AI 供给副榜" in text
+    assert "未等于商业机会" in text
+    assert "I would pay for this service." in text
+
+
+def test_render_keeps_pending_track_before_ai_track_and_numbers_in_order():
+    opps = [
+        {"idea": "缺摘录的服务", "verdict": "待验证", "score": 60, "reason": "r",
+         "url": "http://x", "source": "reddit", "radar_track": "待核验证据副榜"},
+        {"idea": "AI 模型", "verdict": "待验证", "score": 50, "reason": "r",
+         "url": "http://y", "source": "github", "radar_track": "AI 供给副榜"},
+    ]
+
+    text = render(opps, [])
+
+    assert text.index("待核验证据副榜") < text.index("AI 供给副榜")
+    assert "<b>1. 缺摘录的服务</b>" in text
+    assert "<b>2. AI 模型</b>" in text
+
+
 def test_render_blocks_malicious_source_url():
     text = render([{
         "idea": "x", "verdict": "待验证", "score": 50, "reason": "r",

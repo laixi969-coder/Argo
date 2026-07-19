@@ -2,7 +2,7 @@ import json
 from concurrent.futures import ThreadPoolExecutor
 
 from src.llm import call_llm
-from src import taxonomy
+from src import evidence, taxonomy
 
 _CONCURRENCY = 6  # LLM 并发数：压缩总耗时，又不至于把中转站打到限流
 
@@ -14,15 +14,15 @@ PROMPT = """你是「真需求」决策闸门。依据妈妈测试、支付意�
 1. 只能引用给定证据，不得补全、猜测或把源头热度当成付费意愿。
 2. 赞美、未来意向和产品 upvote 不是强需求证据；过去行为、反复发生、替代方案、已付成本、预算/预付/付款才是。
 3. 证据不足时必须判「待验证」。缺少 WTP、预算或复购数据，只能说明当前材料证据不足，绝不能单独作为「伪需求」反证。
-4. 若材料明确出现真实定价+付款、付费用户、复购、营收或盈利，价值闸门已经通过，判「市场已验证」；之后只评价进入机会与护城河，不得倒判伪需求。
+4. 若材料的 evidence_quotes 中有真实定价+付款、付费用户、复购、营收或盈利原句，价值闸门已经通过，判「市场已验证」；market_proof 必须逐字复用其中一条原句。没有该原句一律判「待验证」。
 5. 「伪需求」是死刑判定，只能在材料存在明确反证时使用，例如用户明确不需要/拒付、核心承诺无法交付，或单位经济已有证据证明必然倒挂。必须把反证逐字概括进 disproof；没有明确反证就判「待验证」。
 6. 无法确定性交付或边际成本可能倒挂时，降低评分并说明；只有已有明确反证时才能判伪需求。
-7. 交付范式（区分机会代际）：互联网产品赢在「连接效率」（撮合供需后抽成，护城河=网络效应，如滴滴连人车、淘宝连人货）；AI 产品赢在「高质量交付效率」（自己把活干出来——出片/代码/文案/分析）。
+7. 先看需求与支付证据，不预设 AI、互联网、实体、服务哪一种解法更有商业价值。交付范式可以是连接撮合、软件工具、AI 自动交付、实体商品或人工服务；只有材料里的损失、买家和付费证据才能加分。
    - 工作流、模型聚合、易用性、一致性控制本身都可能是用户正在付费的交付价值，不得仅以「工具壳」为由判伪需求；只在排序时降低缺乏壁垒的进入机会分。
    - 关键追问护城河：模型人人能调，凭什么它的交付更好/更便宜？只认三种壁垒——专有数据、工作流深度、品味/审美筛选。三者皆无（纯裸调模型）即降权。
    - 区分「交付效率」（更快更便宜产出同样东西，易被抄平）与「交付质量」（产出人难以企及的东西，更值钱），后者加分。
-8. AI 与工业结合是明确允许的机会类型。预测性维护、机器视觉质检、工业能耗优化、产线排程、设备诊断等，只要有真实停机损失、良率、人工或能耗证据，就按「AI × 工业」分类，不因它不是纯互联网产品而降权。
-9. 可运行 Demo、活跃开源项目和 Agent 成果是“已经交付”的采用信号，应保留研究价值；但点赞、Star、Fork 仍不等于付费，缺少付款/营收时不得判「市场已验证」。
+8. AI 与工业结合、普通软件、实体产品、虚拟内容和服务都同样允许；只要有真实损失、买家与收费路径，均按证据评分，不因技术形态升降权。
+9. 可运行 Demo、活跃开源项目和已上线产品只是“已经交付”的采用信号；点赞、Star、Fork、媒体报道都不等于付费，缺少付款/营收时不得判「市场已验证」。
 10. 商业潜力只按证据判断：高=已有付款/营收或高频刚需且买家、收费路径清楚；中=痛点成立但支付或获客仍待验证；低=弱需求、低频或商业路径模糊。不得把热度直接写成高潜。
 11. 行业与标签必须具体。行业从给定枚举选一个；tags 输出 2-6 个短标签，优先写用户任务、交付形态、收费模式，不写空泛的“AI”“创新”。
 12. 可见卡片标题必须写成“机会判断”，不是信息源摘要：用「趋势/变化/能力跃迁 + 受影响用户 + 机会/风险/行动」表达。
@@ -82,8 +82,17 @@ def _material(opp):
         "industry_hint",
         "source_tags",
         "is_ai_application",
+        "evidence_quotes",
     )
     return {field: opp.get(field, "未知") for field in fields}
+
+
+def _is_listed_quote(opportunity, quote):
+    candidate = evidence.normalize(quote)
+    return bool(candidate) and any(
+        candidate == evidence.normalize(item)
+        for item in opportunity.get("evidence_quotes") or []
+    )
 
 
 def _parse_result(raw):
@@ -135,9 +144,14 @@ def score_real_demand(opps, llm=call_llm):
 
 def _score_one(o, llm):
     try:
-        evidence = json.dumps(_material(o), ensure_ascii=False, indent=2)
-        raw = llm(PROMPT.format(evidence=evidence))
+        payload = json.dumps(_material(o), ensure_ascii=False, indent=2)
+        raw = llm(PROMPT.format(evidence=payload))
         data, score = _parse_result(raw)
+        proof = str(data.get("market_proof") or "").strip()
+        if data["verdict"] == "市场已验证" and not _is_listed_quote(o, proof):
+            data["verdict"] = "待验证"
+            data["market_proof"] = "无"
+            data["reason"] = f"市场验证证据无法在原文核验，降为待验证：{data.get('reason', '')}"
         o["verdict"] = data["verdict"]
         o["score"] = score
         o["category"] = str(data.get("category") or o.get("category") or "").strip()
@@ -157,6 +171,7 @@ def _score_one(o, llm):
         ).strip()
         o["delivery_edge"] = str(data.get("delivery_edge") or "未知").strip()
         o["market_proof"] = str(data.get("market_proof") or o.get("market_proof") or "未知").strip()
+        o["market_proof_verified"] = _is_listed_quote(o, o["market_proof"])
         o["disproof"] = str(data.get("disproof") or "无").strip()
         for field in ("hook", "pain", "buyer", "money", "angle", "risk"):
             o[field] = str(data.get(field) or o.get(field) or "").strip()

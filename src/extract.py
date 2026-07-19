@@ -5,6 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 from src.llm import call_llm
 from src.outcomes import is_outcome
 from src.ai_relevance import infer as infer_ai_relevance
+from src import evidence
 
 _CONCURRENCY = 6  # LLM 并发数：压缩总耗时，又不至于把中转站打到限流
 
@@ -50,6 +51,7 @@ PROMPT = """你是产品机会的证据提取器。只根据原文提取事实�
   "wtp_evidence": "明确求购、预算、预付或付款证据；没有则写未知",
   "market_proof": "已有产品的定价、付费用户、复购、营收、利润等市场验证；没有则写未知",
   "frequency_urgency": "发生频率与紧迫度；没有则写未知",
+  "evidence_quotes": ["1-3 段直接复制自标题或正文的原文短句；不可翻译、概括或改写；没有则 []"],
   "missing_evidence": ["仍缺少、且会影响判断的关键证据"]
 }}"""
 
@@ -76,19 +78,8 @@ def _parse_json(raw):
 
 
 def _evidence_summary(opp):
-    labels = {
-        "past_behavior": "历史行为",
-        "workaround": "现有替代",
-        "cost_paid": "已付成本",
-        "wtp_evidence": "付费证据",
-        "frequency_urgency": "频率/紧迫度",
-    }
-    facts = []
-    for field, label in labels.items():
-        value = str(opp.get(field, "")).strip()
-        if value and value != "未知":
-            facts.append(f"{label}：{value}")
-    return "；".join(facts) if facts else "未发现可核验的行为或付费证据"
+    quotes = opp.get("evidence_quotes") or []
+    return "；".join(f"原文：{quote}" for quote in quotes) if quotes else "未发现可核验原文摘录"
 
 
 def _product_pool_idea(o: dict) -> str:
@@ -144,6 +135,13 @@ def _extract_one(o, llm):
             o["is_ai_application"] = (
                 ai_value if isinstance(ai_value, bool) else infer_ai_relevance(o)
             )
+            o["evidence_quotes"] = evidence.verified_quotes(
+                o, data.get("evidence_quotes", [])
+            )
+            if not o["evidence_quotes"]:
+                o["missing_evidence"] = [
+                    *o["missing_evidence"], "没有可在原帖核验的证据摘录"
+                ]
     except Exception:
         o["idea"] = o.get("title", "")
         for field in EVIDENCE_FIELDS:
@@ -151,6 +149,7 @@ def _extract_one(o, llm):
         o["missing_evidence"] = ["证据提取调用失败"]
         o["is_demand"] = True
         o["is_ai_application"] = infer_ai_relevance(o)
+        o["evidence_quotes"] = []
     if (is_outcome(o)
             and str(o.get("idea", "")).strip() in {"", "未知"}):
         fallback = _product_pool_idea(o)
@@ -170,4 +169,6 @@ def _extract_one(o, llm):
         o["is_demand"] = True
     if "is_ai_application" not in o:
         o["is_ai_application"] = infer_ai_relevance(o)
+    if "evidence_quotes" not in o:
+        o["evidence_quotes"] = []
     o["demand_evidence"] = _evidence_summary(o)
