@@ -22,6 +22,7 @@ from datetime import date
 from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from src import clock, config, agent, telegram, store, auth, users, plans, billing, saved, mailer, admin, kv
+from src import http_policy, traffic
 from src import taxonomy
 from src import source_catalog
 from src.visibility import is_visible, visible_only
@@ -1407,7 +1408,9 @@ def route(method: str, raw_path: str, body: bytes, headers: dict) -> tuple[int, 
             "User-agent: *\nAllow: /\n"
             "Disallow: /app\nDisallow: /account\nDisallow: /admin\n"
             "Disallow: /saved\nDisallow: /login\nDisallow: /signup\n"
+            "Disallow: /api/\nDisallow: /agent\nDisallow: /feedback\n"
             "Disallow: /all?*q=\n"
+            "Crawl-delay: 5\n"
             f"Sitemap: {_base()}/sitemap.xml\n")
     if method == "GET" and path == "/sitemap.xml":
         host = _base()
@@ -1601,20 +1604,39 @@ def auth_action(method: str, path: str, body: bytes = b"", hdrs: dict | None = N
 
 class _Handler(BaseHTTPRequestHandler):
     def _sec_headers(self):
-        # 防御纵深：禁 MIME 嗅探、禁被 iframe 嵌入(点击劫持)、收敛 referrer
-        self.send_header("X-Content-Type-Options", "nosniff")
-        self.send_header("X-Frame-Options", "DENY")
-        self.send_header("Referrer-Policy", "strict-origin-when-cross-origin")
+        for key, value in http_policy.security_headers(secure=_secure()):
+            self.send_header(key, value)
+
+    def _reject(self, decision: traffic.Decision):
+        payload = json.dumps({"error": decision.reason}, ensure_ascii=False).encode("utf-8")
+        self.send_response(decision.status)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(payload)))
+        self.send_header("Cache-Control", "no-store")
+        if decision.retry_after:
+            self.send_header("Retry-After", str(decision.retry_after))
+        self._sec_headers()
+        self.end_headers()
+        self.wfile.write(payload)
 
     def _send(self, method):
         # 静态资源（logo 等）直接送字节
         if method == "GET" and self.path.startswith("/static/"):
             return self._send_static(self.path.split("?")[0][len("/static/"):])
+        try:
+            length = int(self.headers.get("content-length", 0) or 0)
+        except ValueError:
+            return self._reject(traffic.Decision(False, status=400, reason="无效的 Content-Length"))
+        decision = traffic.size_decision(raw_path=self.path, content_length=length)
+        if decision:
+            return self._reject(decision)
+        decision = traffic.check(method, self.path, self.client_address[0])
+        if not decision.allowed:
+            return self._reject(decision)
         # 舰长设置：委托给 admin 模块
         raw_path = self.path.split("?")[0]
         if raw_path == "/settings" or raw_path.startswith("/settings/"):
             return self._send_settings(method)
-        length = int(self.headers.get("content-length", 0) or 0)
         body = self.rfile.read(length) if length else b""
         hdrs = {k.lower(): v for k, v in self.headers.items()}
         act = auth_action(method, self.path, body, hdrs)
@@ -1624,6 +1646,7 @@ class _Handler(BaseHTTPRequestHandler):
             self.send_response(status)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(payload)))
+            self.send_header("Cache-Control", "no-store")
             self._sec_headers()
             for k, v in extra:
                 self.send_header(k, v)
@@ -1635,6 +1658,7 @@ class _Handler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(payload)))
+        self.send_header("Cache-Control", http_policy.cache_control(method, self.path))
         self._sec_headers()
         self.end_headers()
         self.wfile.write(payload)
@@ -1645,6 +1669,8 @@ class _Handler(BaseHTTPRequestHandler):
         f = STATIC / safe
         if not f.is_file():
             self.send_response(404)
+            self.send_header("Cache-Control", "no-store")
+            self._sec_headers()
             self.end_headers()
             return
         ctype = "image/png" if safe.endswith(".png") else "application/octet-stream"
@@ -1652,7 +1678,8 @@ class _Handler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(data)))
-        self.send_header("Cache-Control", "max-age=86400")
+        self.send_header("Cache-Control", http_policy.cache_control("GET", name, is_static=True))
+        self._sec_headers()
         self.end_headers()
         self.wfile.write(data)
 

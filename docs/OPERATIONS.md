@@ -37,6 +37,14 @@ Hugging Face Spaces 与 GitHub Agent/MCP/工业 AI 已注册在 `src.main.SOURCE
 
 > 注意：`config.get()` 读取顺序 = **KV 覆盖优先，其次环境变量**。本地 `.env` 经 `config._load_env` 注入环境变量。
 
+### Web 缓存与滥用防护
+
+- `/daily`、`/all`、详情页、数据源页及两个公开只读 API 使用短期 CDN 缓存（页面边缘缓存 5 分钟、API 2 分钟），并允许过期内容在后台刷新；账户页、首页（会因 cookie 改变）、认证、设置、收藏和对话一律 `no-store`。
+- 所有动态入口在读取 body 前限制 URL 不超过 4 KiB、body 不超过 32 KiB；超限返回 `414` / `413`，避免大请求占满 serverless 实例。
+- 限流由 Upstash Redis 的原子计数实现，IP 仅以 SHA-256 截断摘要进入短期 `rate:*` 键：公开页面 240 次/分钟、公开 API 120 次/分钟、写操作 30 次/分钟、认证 12 次/10 分钟、`/api/chat` 12 次/分钟。命中返回 `429` 和 `Retry-After`。
+- 本机或 KV 短暂故障时，非昂贵请求退回进程内计数；Vercel 上的 `/api/chat` 则返回 `503`，不在分布式限流失效时暴露 LLM 成本。Vercel 边缘网络负责体量型 DDoS，这一层负责应用层抓取、撞库和成本型滥用。
+- `robots.txt` 额外声明 API、账户与搜索页不供爬虫索引，并设置 `Crawl-delay: 5`；它是爬虫协作约定，真正的防抓取依赖限流和缓存。
+
 ## 3. 常见改动怎么做
 
 - **换 LLM 模型/中转站**：线上「舰长设置」改 Base URL / API Key / Model，保存即写 KV，下次跑自动生效。当前用 Agnes `agnes-2.0-flash`（`https://apihub.agnes-ai.com/v1`）。

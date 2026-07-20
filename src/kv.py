@@ -111,6 +111,22 @@ def release_lock(name: str, owner: str) -> bool:
     return bool(command("EVAL", script, 1, _key(f"lock:{name}"), encoded_owner))
 
 
+def fixed_window(name: str, *, limit: int, window: int) -> tuple[bool, int]:
+    """原子固定窗口限流，返回 (是否允许, 剩余窗口秒数)。"""
+    script = (
+        "local n = redis.call('incr', KEYS[1]); "
+        "if n == 1 then redis.call('expire', KEYS[1], ARGV[1]); end; "
+        "local ttl = redis.call('ttl', KEYS[1]); "
+        "return {n, ttl}"
+    )
+    result = command("EVAL", script, 1, _key(f"rate:{name}"), int(window)) or (0, window)
+    try:
+        count, ttl = int(result[0]), int(result[1])
+    except (TypeError, ValueError, IndexError) as exc:
+        raise RuntimeError("限流存储返回异常") from exc
+    return count <= limit, max(1, ttl)
+
+
 def command(*args):
     if not enabled():
         raise RuntimeError("Upstash Redis 未配置")

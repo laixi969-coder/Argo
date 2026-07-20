@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -10,7 +11,7 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from src import web, auth, admin  # noqa: E402
+from src import web, auth, admin, http_policy, traffic  # noqa: E402
 
 STATIC = ROOT / "static"
 _MIME = {".png": "image/png", ".jpg": "image/jpeg", ".svg": "image/svg+xml",
@@ -24,15 +25,25 @@ def app(environ, start_response):
     qs = environ.get("QUERY_STRING", "")
     raw_path = f"{path}?{qs}" if qs else path
 
+    # 在读取 body 之前先挡掉超长 URL / 超大请求，避免小实例被慢请求拖垮。
+    try:
+        length = int(environ.get("CONTENT_LENGTH") or 0)
+    except (ValueError, TypeError):
+        return _reject(start_response, traffic.Decision(False, status=400, reason="无效的 Content-Length"))
+    size = traffic.size_decision(raw_path=raw_path, content_length=length)
+    if size:
+        return _reject(start_response, size)
+
     # ── 静态资源 ──
     if method == "GET" and path.startswith("/static/"):
         return _static(path[len("/static/"):], start_response)
 
+    client_ip = _client_ip(environ)
+    decision = traffic.check(method, raw_path, client_ip)
+    if not decision.allowed:
+        return _reject(start_response, decision)
+
     # ── 读 body ──
-    try:
-        length = int(environ.get("CONTENT_LENGTH") or 0)
-    except (ValueError, TypeError):
-        length = 0
     body = environ["wsgi.input"].read(length) if length else b""
 
     # ── 组装 headers dict（和 _Handler 保持一致）──
@@ -50,10 +61,7 @@ def app(environ, start_response):
         inner = raw_path[len("/settings"):] or "/"
         status, ctype, text, extra = admin.handle_request(method, inner, body, headers)
         resp_headers = [("Content-Type", f"{ctype}; charset=utf-8"),
-                        ("Cache-Control", "no-store"),
-                        ("X-Content-Type-Options", "nosniff"),
-                        ("X-Frame-Options", "DENY"),
-                        ("Referrer-Policy", "strict-origin-when-cross-origin")]
+                        ("Cache-Control", "no-store"), *_security_headers()]
         for k, v in extra.items():
             resp_headers.append((k, v))
         payload = text.encode("utf-8")
@@ -68,9 +76,7 @@ def app(environ, start_response):
         payload = text.encode("utf-8")
         resp_headers = [("Content-Type", "text/html; charset=utf-8"),
                         ("Content-Length", str(len(payload))),
-                        ("X-Content-Type-Options", "nosniff"),
-                        ("X-Frame-Options", "DENY"),
-                        ("Referrer-Policy", "strict-origin-when-cross-origin")]
+                        ("Cache-Control", "no-store"), *_security_headers()]
         for k, v in extra:
             resp_headers.append((k, v))
         start_response(_status_line(status), resp_headers)
@@ -81,9 +87,8 @@ def app(environ, start_response):
     payload = text.encode("utf-8")
     resp_headers = [("Content-Type", ctype),
                     ("Content-Length", str(len(payload))),
-                    ("X-Content-Type-Options", "nosniff"),
-                    ("X-Frame-Options", "DENY"),
-                    ("Referrer-Policy", "strict-origin-when-cross-origin")]
+                    ("Cache-Control", http_policy.cache_control(method, raw_path)),
+                    *_security_headers()]
     start_response(_status_line(status), resp_headers)
     return [payload]
 
@@ -92,7 +97,8 @@ def _static(name, start_response):
     safe = Path(name).name
     f = STATIC / safe
     if not f.is_file():
-        start_response("404 Not Found", [("Content-Type", "text/plain")])
+        start_response("404 Not Found", [("Content-Type", "text/plain"),
+                                         ("Cache-Control", "no-store"), *_security_headers()])
         return [b"not found"]
     suffix = f.suffix.lower()
     ctype = _MIME.get(suffix, "application/octet-stream")
@@ -100,13 +106,36 @@ def _static(name, start_response):
     start_response("200 OK", [
         ("Content-Type", ctype),
         ("Content-Length", str(len(data))),
-        ("Cache-Control", "public, max-age=86400"),
+        ("Cache-Control", http_policy.cache_control("GET", name, is_static=True)),
+        *_security_headers(),
     ])
     return [data]
+
+
+def _security_headers() -> list[tuple[str, str]]:
+    return http_policy.security_headers(secure=bool(os.environ.get("VERCEL")))
+
+
+def _client_ip(environ) -> str:
+    # 该入口只能由 Vercel 反代访问；优先使用其转发地址，取首个客户端 IP。
+    forwarded = environ.get("HTTP_X_FORWARDED_FOR", "")
+    return (forwarded.split(",", 1)[0].strip() if forwarded else environ.get("REMOTE_ADDR", ""))
+
+
+def _reject(start_response, decision: traffic.Decision):
+    payload = json.dumps({"error": decision.reason}, ensure_ascii=False).encode("utf-8")
+    headers = [("Content-Type", "application/json; charset=utf-8"),
+               ("Content-Length", str(len(payload))),
+               ("Cache-Control", "no-store"), *_security_headers()]
+    if decision.retry_after:
+        headers.append(("Retry-After", str(decision.retry_after)))
+    start_response(_status_line(decision.status), headers)
+    return [payload]
 
 
 def _status_line(code: int) -> str:
     phrases = {200: "OK", 303: "See Other", 400: "Bad Request",
                401: "Unauthorized", 403: "Forbidden", 404: "Not Found",
-               503: "Service Unavailable"}
+               405: "Method Not Allowed", 413: "Payload Too Large",
+               414: "URI Too Long", 429: "Too Many Requests", 503: "Service Unavailable"}
     return f"{code} {phrases.get(code, 'Unknown')}"
