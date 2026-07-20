@@ -9,7 +9,7 @@
 GitHub Actions（每天 07:00 / 13:00 / 19:00 北京，仅 daily.yml）
    → python -m src.main
        → 多源抓取：Reddit · Product Hunt/Futurepedia 成果产品池 · Hacker News 今日首页/需求搜索/历史 Show HN 成果池 · Hugging Face 可运行 Demo · GitHub Agent/MCP/工业 AI 开源成果 · AI 行业应用专线 · TikTok
-       → prefilter(60) → dedup(去重已见) → extract(LLM出中文机会) → score(/req真需求打分) → rank(20)
+       → prefilter(60) → dedup(去重已见) → extract(LLM出中文机会+原文摘录核验) → score(/req真需求打分) → rank(主榜/待核验/AI供给，最多20条)
        → store.append → 写入 Upstash KV（history:{日期} + history:days 索引）
    Vercel 站点(argo-woad.vercel.app) 每次访问实时读 KV → 渲染机会卡片
 ```
@@ -19,6 +19,8 @@ GitHub Actions（每天 07:00 / 13:00 / 19:00 北京，仅 daily.yml）
 - **数据更新不需要重新部署 Vercel**：KV 一变，下次刷新页面就是新的。
 - 每天三班扫描写入同一个 `history:YYYY-MM-DD`，按机会 ID 去重合并；后跑班次不得覆盖早班历史，空榜不得擦除已有结果。
 - 榜单同时接受“当天新需求”和“不限发布日期的已有成果产品”；产品已存在只代表值得研究，不自动等于市场付费已验证。
+- `evidence_quotes` 必须逐字匹配抓取标题或正文。无摘录的候选只能进“待核验证据副榜”；未验证的 AI 技术线索进“AI 供给副榜”。
+- `市场已验证` 必须逐字引用已核验的付款、预算、营收或复购原句；模型概括、点赞、Star、Fork 和产品公告都不足以作为付款证据。
 - 所有“今天”统一按 `Asia/Shanghai` 计算；`history:days` 是日期索引，具体快照永久保留且不设 TTL。
 
 ## 2. 配置都在哪
@@ -42,6 +44,7 @@ Hugging Face Spaces 与 GitHub Agent/MCP/工业 AI 已注册在 `src.main.SOURCE
 - **加平台（如 YouTube）**：照 `reddit_tikhub.py` / `twitter_tikhub.py` 的套路，查 TikHub openapi 找搜索接口 → 写 `xxx_tikhub.py` 归一化为 `{source,title,raw_text,url,signal}` → 在 `src/main.py` 的 `SOURCES` 注册 → 加解析单测。
 - **调词库 / 每次条数**：`demand_keywords.py`（搜索短语）、各源 `_PER_KEYWORD`（每词抓几条）、`main.run` 里 `rank.rank(n=20)`（最终上限）。
 - **手动立刻跑一次**：GitHub → Actions → "Argo 每日机会流水线" → Run workflow。
+  该工作流只在 GitHub Secrets 中存在 Telegram 凭据时发送 Telegram；否则仍会成功写入 KV 并更新网站。
 
 ## 4. 自动跑为什么用 GitHub Actions（不是 Vercel / Mac）
 
@@ -79,6 +82,8 @@ Hugging Face Spaces 与 GitHub Agent/MCP/工业 AI 已注册在 `src.main.SOURCE
 | 数据突然变成假的(example.com / source=s / http://x) | 有人对着生产 KV 跑了测试或 demo（坑 6）；用 conftest 防，手动清 KV 重跑 |
 | GitHub Actions 秒失败 | 计费门（私有仓）→ 公开仓或修 GitHub 付款 |
 | 某次跑超时 | TikHub 限流 GitHub IP；看是否需精简词库 |
+| 主榜为空 | 先看候选是否有 `evidence_quotes`；没有可核验原文时应留在副榜，而不是放宽主榜门槛 |
+| Vercel 域名 TLS 连不上但部署显示成功 | 对比公共 DNS 与本机 DNS；2026-07-19 曾发现 VPN `utun8` 将域名错误解析到 `198.18.0.229`，关闭/修正该 VPN 的 DNS 分流后恢复 |
 
 ## 7. 关键命令
 

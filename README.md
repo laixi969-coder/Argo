@@ -6,9 +6,10 @@
 一个把「商业机会」推进到「好生意候选」的发现网站，**双层结构**：
 
 - **每日发现（广）**：扫描 Reddit、Product Hunt、Hacker News、Hugging Face Spaces、GitHub、Futurepedia、TikTok 与行业应用专线。来源分为需求表达、市场解法、技术供给和行业损失四类，覆盖实体、服务、内容与 AI；30 分以下不展示。
+- **原文核验与分榜**：模型提炼的 `evidence_quotes` 必须逐字出自抓取标题或正文。真实需求主榜只收有核验摘录的机会；缺摘录进入待核验证据副榜，未验证的 AI 技术线索进入 AI 供给副榜。没有已核验的付款、预算、营收或复购原句，绝不标「市场已验证」。
 - **机会挖掘（深）**：每条机会都给出真需求结论、证据强度、买单人、变现路径、风险和下一步最小付费验证。只有市场已验证、证据强、商业潜力高的机会才会标为「好生意候选」。
 
-网站提供完整机会库、日报和详情页；Telegram 继续承接推送与深挖对话，进程常驻 Mac mini，**不需要公网服务器**。
+网站提供完整机会库、日报和详情页，生产环境由 Vercel 托管、GitHub Actions 更新数据；Telegram 继续承接可选推送与深挖对话。
 
 ## 快速开始
 
@@ -23,7 +24,7 @@ python3 -m src.main           # 抓源 + 推日报
 python3 -m src.bot            # 启动探讨
 ```
 
-详见 [docs/handoff.md](docs/handoff.md)（决策、架构、发车与保活全流程）和 [CLAUDE.md](CLAUDE.md)（项目规则）。
+现役架构与排障见 [docs/OPERATIONS.md](docs/OPERATIONS.md)，协作规则见 [AGENTS.md](AGENTS.md) 与 [CLAUDE.md](CLAUDE.md)；[docs/handoff.md](docs/handoff.md) 仅保留 2026-06 的历史决策快照。
 
 ## 技术栈
 

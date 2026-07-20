@@ -16,7 +16,7 @@ Argo 是产品机会雷达：每天扫公开源找「真需求 + 有人愿掏钱
 ### 拉取今日机会
 ```
 GET /api/opportunities
-→ [{idea, verdict, score, reason, url, source}, ...]
+→ [{idea, verdict, score, reason, url, source, radar_track, evidence_quotes}, ...]
 ```
 
 ### 拉取当日日报
@@ -37,6 +37,8 @@ text 支持自然语言探讨，也支持命令：`/config` `/model` `/good N` `
 ## 字段说明
 - `idea` 机会一句话描述 ｜ `verdict` 真需求/待验证/伪需求 ｜ `score` 0-100
 - `reason` 上榜理由（真需求判定）｜ `source`+`url` 来源
+- `radar_track`：真实需求主榜 / 待核验证据副榜 / AI 供给副榜
+- `evidence_quotes`：可在抓取标题或正文逐字核验的原文摘录；为空时不得当作已验证商业事实
 
 ## 用法示例（curl）
 ```bash
